@@ -32,7 +32,7 @@ class Generator(nn.Module):
         nose_mask = (_gray_one_hot[:,9]).unsqueeze(1)
         mouth_mask = (_gray_one_hot[:,6] + _gray_one_hot[:,7] + _gray_one_hot[:,8]).unsqueeze(1)
         
-        mean_skin_feature_map, _inner_face_masks = self.fill_innerface_with_skin_mean(_gray_feature, _gray_one_hot)
+        mean_skin_feature_map, head_masks = self.fill_innerface_with_skin_mean(_gray_feature, _gray_one_hot)
         _mean_skin_feature_map = self.inference(mean_skin_feature_map, _gray_feature, eye_brow_mask, _gray_feature, eye_mask, _gray_feature, nose_mask, _gray_feature, mouth_mask)
         color_reference_image = self.c_net(_mean_skin_feature_map, _color_flip_feature, _color_flip_image, _gray_one_hot, _color_flip_one_hot)
 
@@ -40,8 +40,8 @@ class Generator(nn.Module):
         mix_features = torch.cat((_mean_skin_feature_map, color_reference_image), dim=1)
         result = self.new_generator(mix_features)
         
-        _inner_face_masks = F.interpolate(_inner_face_masks, (256,256), mode='bilinear')
-        result = result * _inner_face_masks + color_image * (1-_inner_face_masks)
+        head_masks = F.interpolate(head_masks, (256,256), mode='bilinear')
+        result = result * head_masks + color_image * (1-head_masks)
 
         return result, color_reference_image
     
@@ -50,7 +50,7 @@ class Generator(nn.Module):
         
         # skin mean
         _feature_map = torch.zeros_like(feature_map)
-        _inner_face_masks = []
+        head_masks = []
         for batch_idx in range(b):
             for label_idx in [1]:
                 _skin_mask = mask[batch_idx, label_idx].unsqueeze(0)
@@ -63,9 +63,11 @@ class Generator(nn.Module):
                 _feature_map[batch_idx].masked_scatter_(inner_face_mask.bool(), ch_skin_area)
 
             _feature_map[batch_idx] = feature_map[batch_idx] * (1 - _inner_face_mask) + _feature_map[batch_idx] * _inner_face_mask
-            _inner_face_masks.append(_inner_face_mask)
-        _inner_face_masks = torch.stack(_inner_face_masks,dim=0)
-        return _feature_map, _inner_face_masks
+            
+            _hair_mask = mask[batch_idx, 10].unsqueeze(0)
+            head_masks.append((_inner_face_mask + _hair_mask))
+        head_masks = torch.stack(head_masks,dim=0)
+        return _feature_map, head_masks
 
     def inference(self, base_feature_map, eye_brow_feature_map, eye_brow_mask, eye_feature_map, eye_mask, nose_feature_map, nose_mask, mouth_feature_map, mouth_mask):
         switched_feature_map = torch.zeros_like(base_feature_map)

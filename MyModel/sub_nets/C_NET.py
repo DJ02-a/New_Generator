@@ -16,7 +16,7 @@ class C_Net(nn.Module):
         canvas = torch.zeros_like(rgb_image)
         b, c, h, w = gray_feature_map.size()
         for b_idx in range(b):
-            for c_idx in range(1, 10):
+            for c_idx in range(1, 11):
                 gray_mask, rgb_mask = gray_one_hot[b_idx,c_idx], rgb_one_hot[b_idx,c_idx]
                 if gray_mask.sum() == 0:
                     continue
