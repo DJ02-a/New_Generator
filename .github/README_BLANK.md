@@ -27,7 +27,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/Innerverz-AI/CodeTemplate">
+  <a href="https://github.com/github_username/repo_name">
     <img src="assets/templates/logo.png" alt="Logo" width="80" height="80">
   </a>
 
@@ -36,14 +36,14 @@
   <p align="center">
     project_description
     <br />
-    <a href="https://github.com/Innerverz-AI/CodeTemplate"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/github_username/repo_name"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/Innerverz-AI/CodeTemplate">View Demo</a>
+    <a href="https://github.com/github_username/repo_name">View Demo</a>
     ·
-    <a href="https://github.com/Innerverz-AI/CodeTemplate/issues">Report Bug</a>
+    <a href="https://github.com/github_username/repo_name/issues">Report Bug</a>
     ·
-    <a href="https://github.com/Innerverz-AI/CodeTemplate/issues">Request Feature</a>
+    <a href="https://github.com/github_username/repo_name/issues">Request Feature</a>
   </p>
 </div>
 
@@ -77,7 +77,7 @@
 
 [![Product Name Screen Shot][product-screenshot]](https://example.com)
 
-Here's a blank template to get started: To avoid retyping too much info. Do a search and replace with your text editor for the following: `Innerverz-AI`, `CodeTemplate`, `twitter_handle`, `linkedin_username`, `email_client`, `email`, `project_title`, `project_description`
+Here's a blank template to get started: To avoid retyping too much info. Do a search and replace with your text editor for the following: `github_username`, `repo_name`, `twitter_handle`, `linkedin_username`, `email_client`, `email`, `project_title`, `project_description`
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -130,9 +130,10 @@ python scripts/train.py {run_id}
 - [ ] Feature 3
     - [ ] Nested Feature
 
-See the [open issues](https://github.com/Innerverz-AI/CodeTemplate/issues) for a full list of proposed features (and known issues).
+See the [open issues](https://github.com/github_username/repo_name/issues) for a full list of proposed features (and known issues).
 
 <p align="right">(<a href="#top">back to top</a>)</p>
+
 
 
 <!-- CONTRIBUTING -->
@@ -155,29 +156,33 @@ Don't forget to give the project a star! Thanks again!
 <!-- CONTACT -->
 ## Contact
 
-Contact us: innerverz@innerverz.com
+Your Name - [@twitter_handle](https://twitter.com/twitter_handle) - email@email_client.com
 
-Project Link: [https://github.com/Innerverz-AI/CodeTemplate](https://github.com/Innerverz-AI/CodeTemplate)
+Project Link: [https://github.com/github_username/repo_name](https://github.com/github_username/repo_name)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
+
 
 
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-* [Best-README-Template](https://github.com/othneildrew/Best-README-Template)
+* []()
+* []()
+* []()
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
+
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/Innerverz-AI/CodeTemplate.svg?style=for-the-badge
-[contributors-url]: https://github.com/Innerverz-AI/CodeTemplate/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/Innerverz-AI/CodeTemplate.svg?style=for-the-badge
-[forks-url]: https://github.com/Innerverz-AI/CodeTemplate/network/members
-[stars-shield]: https://img.shields.io/github/stars/Innerverz-AI/CodeTemplate.svg?style=for-the-badge
-[stars-url]: https://github.com/Innerverz-AI/CodeTemplate/stargazers
-[issues-shield]: https://img.shields.io/github/issues/Innerverz-AI/CodeTemplate.svg?style=for-the-badge
-[issues-url]: https://github.com/Innerverz-AI/CodeTemplate/issues
+[contributors-shield]: https://img.shields.io/github/contributors/github_username/repo_name.svg?style=for-the-badge
+[contributors-url]: https://github.com/github_username/repo_name/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/github_username/repo_name.svg?style=for-the-badge
+[forks-url]: https://github.com/github_username/repo_name/network/members
+[stars-shield]: https://img.shields.io/github/stars/github_username/repo_name.svg?style=for-the-badge
+[stars-url]: https://github.com/github_username/repo_name/stargazers
+[issues-shield]: https://img.shields.io/github/issues/github_username/repo_name.svg?style=for-the-badge
+[issues-url]: https://github.com/github_username/repo_name/issues
 [product-screenshot]: images/screenshot.png
