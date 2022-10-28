@@ -32,9 +32,6 @@ class My_Generator(nn.Module):
                 self.res_list.append(res_block)
         self.res_blocks = nn.ModuleList(self.res_list)
 
-
-        self.up = nn.Upsample(scale_factor=2)
-
         self.conv_img = nn.Conv2d(self.ch[output_size], 3, 3, padding=1)
 
     # x == mix features
@@ -43,14 +40,14 @@ class My_Generator(nn.Module):
         mid_features = []
         for idx, conv_layer in enumerate(self.ch_match):
             size = int(2**(math.log2(self.output_size) - self.num_up_layers + idx))
-            _x = F.interpolate(x, (size, size))
+            _x = F.interpolate(x, (size, size), mode='bilinear')
             mid_feature = conv_layer(_x)
             mid_features.append(mid_feature)
 
         x = mid_features[0]
         for mid_feature, res_layer in zip(mid_features, self.res_blocks):
             x = res_layer(x, mid_feature)
-            x = self.up(x)
+            x = F.interpolate(x,scale_factor=2, mode='bilinear')
 
         x = self.conv_img(F.leaky_relu(x, 2e-1))
         x = F.tanh(x)

@@ -37,14 +37,14 @@ W_feat: 10
 
 # hyperparameters
 same_prob: 0.2
-batch_per_gpu: 8
+batch_per_gpu: 4
 valid_batch_per_gpu: 1
 max_step: 400000
 
 # log cycle
 loss_cycle: 10
-test_cycle: 1000
-ckpt_cycle: 10000
+test_cycle: 500
+ckpt_cycle: 5000
 
 # ckpt path
 # load checkpoints from ./train_result/{ckpt_id}/ckpt/G_{ckpt_step}.pt
