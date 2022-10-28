@@ -56,7 +56,7 @@ class MyNetModel(ModelInterface):
         fake_img, color_reference_image = self.G(dict["gray_image"], dict["color_image"], dict["color_flip_image"], dict["gray_one_hot"], dict["color_flip_one_hot"])
         
         dict["fake_img"] = fake_img
-        dict["color_reference_image"] = F.interpolate(color_reference_image,(256,256))
+        dict["color_reference_image"] = F.interpolate(color_reference_image,(512,512))
         
         g_pred_fake, feat_fake = self.D(dict["fake_img"], None)
         feat_real = self.D.get_feature(dict["color_image"])

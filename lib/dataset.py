@@ -10,7 +10,7 @@ from lib.utils_mask import label_converter, to_one_hot
 
 class SingleFaceDatasetTrain(Dataset):
     def __init__(self, dataset_root_list, isMaster):
-        self.img_size = 256
+        self.img_size = 512
         self.image_path_list = glob.glob('/home/jjy/Datasets/celeba/train/images/*.*')
         self.mask_path_list = glob.glob('/home/jjy/Datasets/celeba/train/label/*.*')
         
@@ -60,7 +60,7 @@ class SingleFaceDatasetTrain(Dataset):
 
 class SingleFaceDatasetValid(Dataset):
     def __init__(self, dataset_root_list, isMaster):
-        self.img_size = 256
+        self.img_size = 512
         self.image_path_list = glob.glob('/home/jjy/Datasets/celeba/valid/images/*.*')[:500]
         self.mask_path_list = glob.glob('/home/jjy/Datasets/celeba/valid/label/*.*')[:500]
         

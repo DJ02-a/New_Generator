@@ -19,13 +19,13 @@ class Generator(nn.Module):
     def forward(self, gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot):
         
         gray_feature = self.structure_encoder(gray_image)
-        _gray_feature = F.interpolate(gray_feature, (64,64))
-        _gray_one_hot = F.interpolate(gray_one_hot, (64,64))
+        _gray_feature = F.interpolate(gray_feature, (128,128))
+        _gray_one_hot = F.interpolate(gray_one_hot, (128,128))
         
         color_flip_feature = self.color_encoder(color_flip_image)
-        _color_flip_feature = F.interpolate(color_flip_feature, (64,64))
-        _color_flip_image = F.interpolate(color_flip_image, (64,64))
-        _color_flip_one_hot = F.interpolate(color_flip_one_hot, (64,64))
+        _color_flip_feature = F.interpolate(color_flip_feature, (128,128))
+        _color_flip_image = F.interpolate(color_flip_image, (128,128))
+        _color_flip_one_hot = F.interpolate(color_flip_one_hot, (128,128))
         
         eye_brow_mask = (_gray_one_hot[:,2] + _gray_one_hot[:,3]).unsqueeze(1)
         eye_mask = (_gray_one_hot[:,4] + _gray_one_hot[:,5]).unsqueeze(1)
@@ -40,7 +40,7 @@ class Generator(nn.Module):
         mix_features = torch.cat((_mean_skin_feature_map, color_reference_image), dim=1)
         result = self.new_generator(mix_features)
         
-        head_masks = F.interpolate(head_masks, (256,256), mode='bilinear')
+        head_masks = F.interpolate(head_masks, (512,512), mode='bilinear')
         result = result * head_masks + color_image * (1-head_masks)
 
         return result, color_reference_image
