@@ -19,31 +19,31 @@ class Generator(nn.Module):
     def forward(self, gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot):
         
         gray_feature = self.structure_encoder(gray_image)
-        _gray_feature = F.interpolate(gray_feature, (128,128))
-        _gray_one_hot = F.interpolate(gray_one_hot, (128,128))
         
         color_flip_feature = self.color_encoder(color_flip_image)
+        eye_brow_mask = (gray_one_hot[:,2] + gray_one_hot[:,3]).unsqueeze(1)
+        eye_mask = (gray_one_hot[:,4] + gray_one_hot[:,5]).unsqueeze(1)
+        nose_mask = (gray_one_hot[:,9]).unsqueeze(1)
+        mouth_mask = (gray_one_hot[:,6] + gray_one_hot[:,7] + gray_one_hot[:,8]).unsqueeze(1)
+        
+        mean_skin_feature_map, head_masks = self.fill_innerface_with_skin_mean(gray_feature, gray_one_hot)
+        mixed_mean_skin_feature_map = self.inference(mean_skin_feature_map, gray_feature, eye_brow_mask, gray_feature, eye_mask, gray_feature, nose_mask, gray_feature, mouth_mask)
+        
+        _mixed_mean_skin_feature_map = F.interpolate(mixed_mean_skin_feature_map,(128,128))
+        _gray_one_hot = F.interpolate(gray_one_hot, (128,128))
         _color_flip_feature = F.interpolate(color_flip_feature, (128,128))
         _color_flip_image = F.interpolate(color_flip_image, (128,128))
         _color_flip_one_hot = F.interpolate(color_flip_one_hot, (128,128))
         
-        eye_brow_mask = (_gray_one_hot[:,2] + _gray_one_hot[:,3]).unsqueeze(1)
-        eye_mask = (_gray_one_hot[:,4] + _gray_one_hot[:,5]).unsqueeze(1)
-        nose_mask = (_gray_one_hot[:,9]).unsqueeze(1)
-        mouth_mask = (_gray_one_hot[:,6] + _gray_one_hot[:,7] + _gray_one_hot[:,8]).unsqueeze(1)
-        
-        mean_skin_feature_map, head_masks = self.fill_innerface_with_skin_mean(_gray_feature, _gray_one_hot)
-        _mean_skin_feature_map = self.inference(mean_skin_feature_map, _gray_feature, eye_brow_mask, _gray_feature, eye_mask, _gray_feature, nose_mask, _gray_feature, mouth_mask)
-        color_reference_image = self.c_net(_mean_skin_feature_map, _color_flip_feature, _color_flip_image, _gray_one_hot, _color_flip_one_hot)
-
+        color_reference_image = self.c_net(_mixed_mean_skin_feature_map, _color_flip_feature, _color_flip_image, _gray_one_hot, _color_flip_one_hot)
+        _color_reference_image = F.interpolate(color_reference_image,(512,512),mode='nearest')
             
-        mix_features = torch.cat((_mean_skin_feature_map, color_reference_image), dim=1)
+        mix_features = torch.cat((mixed_mean_skin_feature_map, _color_reference_image), dim=1)
         result = self.new_generator(mix_features)
         
-        head_masks = F.interpolate(head_masks, (512,512), mode='bilinear')
         result = result * head_masks + color_image * (1-head_masks)
 
-        return result, color_reference_image
+        return result, _color_reference_image
     
     def fill_innerface_with_skin_mean(self, feature_map, mask):
         b, c, _, _ = feature_map.size()
