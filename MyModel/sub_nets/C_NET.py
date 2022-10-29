@@ -22,20 +22,19 @@ class C_Net(nn.Module):
                     continue
 
                 gray_matrix = torch.masked_select(gray_feature_map[b_idx], gray_mask.bool()).reshape(c, -1) # 64, pixel_num_A
-                gray_matrix_bar = gray_matrix - gray_matrix.mean(0, keepdim=True) # 64, pixel_num_A
+                gray_matrix_bar = gray_matrix - gray_matrix.mean(1, keepdim=True) # (64, 1)
                 gray_matrix_norm = torch.norm(gray_matrix_bar, dim=0, keepdim=True)
                 gray_matrix_ = gray_matrix_bar / gray_matrix_norm
 
                 rgb_matrix = torch.masked_select(rgb_feature_map[b_idx], rgb_mask.bool()).reshape(c, -1) # 64, pixel_num_B
-                rgb_matrix_bar = rgb_matrix - rgb_matrix.mean(0, keepdim=True) # 64, pixel_num_B
+                rgb_matrix_bar = rgb_matrix - rgb_matrix.mean(1, keepdim=True) # 64, pixel_num_B
                 rgb_matrix_norm = torch.norm(rgb_matrix_bar, dim=0, keepdim=True)
                 rgb_matrix_ = rgb_matrix_bar / rgb_matrix_norm
                
-                rgb_pixels = torch.masked_select(rgb_image[b_idx], rgb_mask.bool()).reshape(3,-1)
-               
                 correlation_matrix = torch.matmul(gray_matrix_.transpose(0,1), rgb_matrix_)
-                correlation_matrix = F.softmax(correlation_matrix,dim=1)
+                correlation_matrix = F.softmax(correlation_matrix,dim=0)
                 
+                rgb_pixels = torch.masked_select(rgb_image[b_idx], rgb_mask.bool()).reshape(3,-1)
                 colorized_matrix = torch.matmul(correlation_matrix, rgb_pixels.transpose(0,1)).transpose(0,1)
 
                 canvas[b_idx].masked_scatter_(gray_mask.bool(), colorized_matrix) # 3 128 128

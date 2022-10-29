@@ -56,12 +56,21 @@ def label_converter(before_label):
     for idx in face_parsing_converter:
         canvas = np.where(_before_label==idx, face_parsing_converter[idx], canvas)
         
+        
     # 4 5
     kernel = np.ones((3, 3), np.uint8)
     for dilate_idx in [4,5]:
         eye_mask = np.where(canvas==dilate_idx,1,0)
-        dilated_eye_mask = cv2.dilate(eye_mask.astype(np.uint8), kernel, iterations=3)
+        dilated_eye_mask = cv2.dilate(eye_mask.astype(np.uint8), kernel, iterations=5)
         canvas = canvas * (1-dilated_eye_mask) + (dilated_eye_mask * dilate_idx) * (dilated_eye_mask)
+
+    
+    # new_c = max(face_parsing_converter.values())+1
+    # for idx in range(new_c):
+    #     down_size_canvas = cv2.resize(canvas, (128,128))
+    #     if len(np.where(down_size_canvas==idx)[0]) == 1:
+    #         np.where(down_size_canvas==idx)
+    #         canvas = np.where(canvas==idx,1,canvas)
 
     return canvas
 

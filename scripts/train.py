@@ -8,7 +8,6 @@ from MyModel.model import MyNetModel
 import torch
 import wandb
 
-
 def train(gpu, args): 
     torch.cuda.set_device(gpu)
 

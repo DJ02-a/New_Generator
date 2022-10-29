@@ -28,7 +28,6 @@ class Generator(nn.Module):
         
         mean_skin_feature_map, head_masks = self.fill_innerface_with_skin_mean(gray_feature, gray_one_hot)
         mixed_mean_skin_feature_map = self.inference(mean_skin_feature_map, gray_feature, eye_brow_mask, gray_feature, eye_mask, gray_feature, nose_mask, gray_feature, mouth_mask)
-        
         _mixed_mean_skin_feature_map = F.interpolate(mixed_mean_skin_feature_map,(128,128))
         _gray_one_hot = F.interpolate(gray_one_hot, (128,128))
         _color_flip_feature = F.interpolate(color_flip_feature, (128,128))
@@ -37,10 +36,9 @@ class Generator(nn.Module):
         
         color_reference_image = self.c_net(_mixed_mean_skin_feature_map, _color_flip_feature, _color_flip_image, _gray_one_hot, _color_flip_one_hot)
         _color_reference_image = F.interpolate(color_reference_image,(512,512),mode='nearest')
-            
         mix_features = torch.cat((mixed_mean_skin_feature_map, _color_reference_image), dim=1)
-        result = self.new_generator(mix_features)
         
+        result = self.new_generator(mix_features)
         result = result * head_masks + color_image * (1-head_masks)
 
         return result, _color_reference_image
@@ -70,10 +68,11 @@ class Generator(nn.Module):
         return _feature_map, head_masks
 
     def inference(self, base_feature_map, eye_brow_feature_map, eye_brow_mask, eye_feature_map, eye_mask, nose_feature_map, nose_mask, mouth_feature_map, mouth_mask):
-        switched_feature_map = torch.zeros_like(base_feature_map)
-        switched_feature_map = base_feature_map * (1 - eye_brow_mask) + eye_brow_feature_map * eye_brow_mask
-        switched_feature_map = base_feature_map * (1 - eye_mask) + eye_feature_map * eye_mask
-        switched_feature_map = base_feature_map * (1 - nose_mask) + nose_feature_map * nose_mask
-        switched_feature_map = base_feature_map * (1 - mouth_mask) + mouth_feature_map * mouth_mask
+        # switched_feature_map = torch.zeros_like(base_feature_map)
+        switched_feature_map = base_feature_map
+        switched_feature_map = switched_feature_map * (1 - eye_brow_mask) + eye_brow_feature_map * eye_brow_mask
+        switched_feature_map = switched_feature_map * (1 - eye_mask) + eye_feature_map * eye_mask
+        switched_feature_map = switched_feature_map * (1 - nose_mask) + nose_feature_map * nose_mask
+        switched_feature_map = switched_feature_map * (1 - mouth_mask) + mouth_feature_map * mouth_mask
 
         return switched_feature_map
