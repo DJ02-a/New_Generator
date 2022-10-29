@@ -93,7 +93,7 @@ class My_Generator(nn.Module):
         mid_features = []
         for idx, conv_layer in enumerate(self.ch_match):
             size = int(2**(math.log2(self.output_size) - self.num_up_layers + idx))
-            _x = F.interpolate(x, (size, size), mode='bilinear')
+            _x = F.interpolate(x, (size, size), mode='bilinear', align_corners=False)
             mid_feature = conv_layer(_x)
             mid_features.append(mid_feature)
         
@@ -102,7 +102,7 @@ class My_Generator(nn.Module):
         for mid_feature, res_layer in zip(mid_features, self.res_blocks):
             
             x = res_layer(x, mid_feature)
-            x = F.interpolate(x,scale_factor=2, mode='bilinear')
+            x = F.interpolate(x,scale_factor=2, mode='bilinear', align_corners=False)
             
         x = self.conv_img(F.leaky_relu(x, 2e-1))
         x = torch.tanh(x)

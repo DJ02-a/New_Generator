@@ -49,6 +49,7 @@ class MyNetModel(ModelInterface):
             self.dict["color_flip_image"],
             self.dict["gray_image"],
             self.dict["color_reference_image"],
+            # (self.dict["color_reference_image"]-0.5) * 2,
             self.dict["fake_img"]
             ]
 
