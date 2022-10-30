@@ -20,17 +20,19 @@ class Generator(nn.Module):
         self.new_generator = My_Generator(64, 128, 512)
 
     def forward(self, gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot):
-        _gray_image = F.interpolate(gray_image, (256, 256))
-        _color_flip_image = F.interpolate(color_flip_image, (256, 256))
-        _gray_one_hot = F.interpolate(gray_one_hot, (256, 256))
-        _color_flip_one_hot = F.interpolate(color_flip_one_hot, (256,256))
+        gray_feature, _ = self.structure_encoder(gray_image)
+        color_flip_feature, _ = self.color_encoder(color_flip_image)
         
-        gray_feature, _ = self.structure_encoder(_gray_image)
-        color_flip_feature, _ = self.color_encoder(_color_flip_image)
-
+        _gray_image = F.interpolate(gray_image, (128, 128))
+        _gray_feature = F.interpolate(gray_feature, (128, 128))
+        _color_flip_feature = F.interpolate(color_flip_feature, (128, 128))
+        _color_flip_image = F.interpolate(color_flip_image, (128, 128))
+        _gray_one_hot = F.interpolate(gray_one_hot, (128, 128))
+        _color_flip_one_hot = F.interpolate(color_flip_one_hot, (128,128))
+        
         # interpolate for c_net
         # output shape : b 3 512 512
-        color_reference_image = self.c_net(gray_feature, color_flip_feature, _color_flip_image, _gray_one_hot, _color_flip_one_hot)
+        color_reference_image = self.c_net(_gray_feature, _color_flip_feature, _color_flip_image, _gray_one_hot, _color_flip_one_hot)
         _color_reference_image = F.interpolate(color_reference_image, (512, 512))
         
         # blend color and structure
