@@ -16,11 +16,11 @@ class C_Net(nn.Module):
         canvas = torch.ones_like(rgb_image) * -1
         b, c, h, w = gray_feature_map.size()
         for b_idx in range(b):
-            for c_idx in range(1, 11):
+            for c_idx in range(1, 12):
                 gray_mask, rgb_mask = gray_one_hot[b_idx,c_idx], rgb_one_hot[b_idx,c_idx]
                 if gray_mask.sum() == 0 or gray_mask.sum() == 1 or rgb_mask.sum() == 0 or rgb_mask.sum() == 1:
                     continue
-
+                import pdb;pdb.set_trace()
                 gray_matrix = torch.masked_select(gray_feature_map[b_idx], gray_mask.bool()).reshape(c, -1) # 64, pixel_num_A
                 gray_matrix_bar = gray_matrix - gray_matrix.mean(1, keepdim=True) # (64, 1)
                 gray_matrix_norm = torch.norm(gray_matrix_bar, dim=0, keepdim=True)

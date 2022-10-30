@@ -1,5 +1,5 @@
 import abc
-# from packages.lpips.lpips import LPIPS
+from packages.lpips.lpips import LPIPS
 import torch
 import torch.nn.functional as F
 import time

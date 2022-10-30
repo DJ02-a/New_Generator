@@ -13,6 +13,7 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.input_size = input_size
         self.structure_encoder = GradualStyleEncoder(1)
+        self.mix_structure_encoder = GradualStyleEncoder(64)
         self.color_encoder = GradualStyleEncoder()
         
         self.c_net = C_Net()
@@ -24,22 +25,23 @@ class Generator(nn.Module):
         color_flip_feature = self.color_encoder(color_flip_image)
         
         transposed_feature_map, transposed_image, transposed_mask = self.transpose_components(gray_image, gray_feature, gray_one_hot)
-        head_masks = torch.sum(transposed_mask[:,1:], dim=1).unsqueeze(1)
+        mixed_feature_map = self.mix_structure_encoder(transposed_feature_map)
         
-        _transposed_feature_map = F.interpolate(transposed_feature_map,(128,128))
+        head_masks = torch.sum(transposed_mask[:,1:], dim=1).unsqueeze(1)
+        _mixed_feature_map = F.interpolate(mixed_feature_map,(128,128))
         _transposed_mask = F.interpolate(transposed_mask, (128,128))
         _color_flip_feature = F.interpolate(color_flip_feature, (128,128))
         _color_flip_image = F.interpolate(color_flip_image, (128,128))
         _color_flip_one_hot = F.interpolate(color_flip_one_hot, (128,128))
         
-        color_reference_image = self.c_net(_transposed_feature_map, _color_flip_feature, _color_flip_image, _transposed_mask, _color_flip_one_hot)
+        color_reference_image = self.c_net(_mixed_feature_map, _color_flip_feature, _color_flip_image, _transposed_mask, _color_flip_one_hot)
         _color_reference_image = F.interpolate(color_reference_image,(512,512),mode='nearest')
-        mix_features = torch.cat((transposed_feature_map, _color_reference_image), dim=1)
+        mix_features = torch.cat((mixed_feature_map, _color_reference_image), dim=1)
         
         result = self.new_generator(mix_features)
         result = result * head_masks + color_image * (1-head_masks)
 
-        return result, _color_reference_image, transposed_image
+        return result, _color_reference_image, transposed_image, transposed_mask
     
     def fill_innerface_with_skin_mean(self, feature_map, mask):
         b, c, _, _ = feature_map.size()
@@ -120,12 +122,14 @@ class Generator(nn.Module):
             component_feature_map = feature_map * component_mask
             
             # roll
-            y_roll, x_roll = random.randrange(-5,5), random.randrange(-5,5)
+            # y_roll, x_roll = random.randrange(-5,5), random.randrange(-5,5)
+            y_roll, x_roll = 0,0
             _component_mask = torch.roll(component_mask, shifts=(y_roll, x_roll), dims=(-2, -1))
             _component_feature_map = torch.roll(component_feature_map, shifts=(y_roll, x_roll), dims=(-2, -1))
             
             # interpolate
-            y_multi, x_multi = random.uniform(0.8,1.2), random.uniform(0.8,1.2)       
+            # y_multi, x_multi = random.uniform(0.8,1.2), random.uniform(0.8,1.2)       
+            y_multi, x_multi = 1,1      
             _component_mask = F.interpolate(_component_mask, scale_factor=(y_multi, x_multi))
             _component_feature_map = F.interpolate(_component_feature_map, scale_factor=(y_multi, x_multi))
 

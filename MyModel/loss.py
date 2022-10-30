@@ -1,5 +1,6 @@
 from lib.loss_interface import Loss, LossInterface
 import time
+import torch
 import torch.nn.functional as F
 from MyModel.utils.util_loss import VGGLoss
 
@@ -14,8 +15,9 @@ class MyModelLoss(LossInterface):
     def get_loss_G(self, dict, valid=False):
         L_G = 0.0
         
-        if self.args.W_adv:
-            # L_gan = self.ganloss(dict["g_pred_fake"],True,for_discriminator=False)
+        # _transposed_wo_transposed_mask = (torch.sum(dict["transposed_mask"],dim=1) - torch.sum(dict["transposed_mask"][:,1:10],dim=1)).unsqueeze(1)
+        # _real_wo_transposed_mask = torch.sum(dict["gray_one_hot"])
+        if self.args.W_adv: # transposed_mask
             L_adv = (-dict["g_pred_fake"]).mean()
             L_G += self.args.W_adv * L_adv
             self.loss_dict["L_g_adv"] = round(L_adv.item(), 4)
@@ -31,7 +33,11 @@ class MyModelLoss(LossInterface):
             L_G += self.args.W_feat * L_feat
             self.loss_dict["L_feat"] = round(L_feat.item(), 4)
         
-        
+        if self.args.W_lpips:
+            L_lpips = Loss.get_lpips_loss(dict["fake_img"], dict["color_image"])
+            L_G += self.args.W_lpips * L_lpips
+            self.loss_dict["L_lpips"] = round(L_lpips.item(), 4)
+            
         
         if valid:
             self.loss_dict["valid_L_G"] += round(L_G.item(), 4)

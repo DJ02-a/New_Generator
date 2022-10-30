@@ -34,6 +34,7 @@ betas: [0.9, 0.999] # default: Adam (0.9, 0.999) / Ranger (0.95, 0.999)
 W_adv: 1
 W_vgg: 10
 W_feat: 10
+W_lpips: 10
 
 # hyperparameters
 same_prob: 0.2
@@ -50,6 +51,6 @@ ckpt_cycle: 5000
 # load checkpoints from ./train_result/{ckpt_id}/ckpt/G_{ckpt_step}.pt
 # if ckpt_id is empty, load G_latest.pt and D_latest.pt
 # Note that an empty space is None, but None is "None"
-load_ckpt: True
-ckpt_id: 6.color_128_result_512_eyedilate_softmax_dim1
+load_ckpt: False
+ckpt_id: 
 ckpt_step:
