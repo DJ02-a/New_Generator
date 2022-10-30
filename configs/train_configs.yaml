@@ -4,14 +4,14 @@
 model_id: New_Model_Face_Design_end2end
 
 # multi-GPUs
-use_mGPU: False
+use_mGPU: True
 
 # validation
-use_validation: False
+use_validation: True
 valid_dataset_root: ./assets/k-celeb
 
 # wandb
-use_wandb: False
+use_wandb: True
 wandb_alert_thres: 1000
 
 # root
@@ -50,6 +50,6 @@ ckpt_cycle: 5000
 # load checkpoints from ./train_result/{ckpt_id}/ckpt/G_{ckpt_step}.pt
 # if ckpt_id is empty, load G_latest.pt and D_latest.pt
 # Note that an empty space is None, but None is "None"
-load_ckpt: False
-ckpt_id: 
+load_ckpt: True
+ckpt_id: 6.color_128_result_512_eyedilate_softmax_dim1
 ckpt_step:
