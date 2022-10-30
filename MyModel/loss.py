@@ -37,6 +37,11 @@ class MyModelLoss(LossInterface):
             L_lpips = Loss.get_lpips_loss(dict["fake_img"], dict["color_image"])
             L_G += self.args.W_lpips * L_lpips
             self.loss_dict["L_lpips"] = round(L_lpips.item(), 4)
+        
+        if self.args.W_struc:
+            L_feat = Loss.get_L1_loss(dict["gray_image"], dict["fake_gray"])
+            L_G += self.args.W_feat * L_feat
+            self.loss_dict["L_feat"] = round(L_feat.item(), 4)
             
         
         if valid:

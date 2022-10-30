@@ -35,6 +35,7 @@ W_adv: 1
 W_vgg: 10
 W_feat: 10
 W_lpips: 10
+W_struc: 10
 
 # hyperparameters
 same_prob: 0.2

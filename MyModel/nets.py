@@ -123,7 +123,7 @@ class Generator(nn.Module):
             
             # roll
             # y_roll, x_roll = random.randrange(-5,5), random.randrange(-5,5)
-            y_roll, x_roll = 0,0
+            y_roll, x_roll =0,0
             _component_mask = torch.roll(component_mask, shifts=(y_roll, x_roll), dims=(-2, -1))
             _component_feature_map = torch.roll(component_feature_map, shifts=(y_roll, x_roll), dims=(-2, -1))
             
