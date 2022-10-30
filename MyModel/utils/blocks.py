@@ -9,7 +9,7 @@ import torch.nn.functional as F
 import torchvision
 import torch.nn.utils.spectral_norm as spectral_norm
 from MyModel.utils.normalization import SEAN, SPADE
-
+from lib.blocks import Interpolate
 
 # ResNet block that uses SPADE.
 # It differs from the ResNet block of pix2pixHD in that

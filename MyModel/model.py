@@ -48,7 +48,6 @@ class MyNetModel(ModelInterface):
             self.dict["color_image"],
             self.dict["color_flip_image"],
             self.dict["gray_image"],
-            # self.dict["transposed_gray"],
             self.dict["color_reference_image"],
             self.dict["fake_img"],
             self.dict["fake_gray"]
@@ -56,15 +55,14 @@ class MyNetModel(ModelInterface):
         
 
     def run_G(self, dict):
-        fake_img, color_reference_image, transposed_gray, transposed_mask = self.G(dict["gray_image"], dict["color_image"], dict["color_flip_image"], dict["gray_one_hot"], dict["color_flip_one_hot"])
+        fake_img, color_reference_image, blended_image = self.G(dict["gray_image"], dict["color_image"], dict["color_flip_image"], dict["gray_one_hot"], dict["color_flip_one_hot"])
         # https://holypython.com/python-pil-tutorial/how-to-convert-an-image-to-black-white-in-python-pil/
         fake_gray = (fake_img[:,0] * 0.299 + fake_img[:,1] * 0.587 + fake_img[:,2]* 0.114).unsqueeze(1)
                 
         dict["fake_img"] = fake_img
         dict["color_reference_image"] = color_reference_image
-        dict["transposed_gray"] = transposed_gray
-        dict["transposed_mask"] = transposed_mask
         dict["fake_gray"] = fake_gray
+        dict["blended_image"] = blended_image
         
         g_pred_fake, feat_fake = self.D(dict["fake_img"], None)
         feat_real = self.D.get_feature(dict["color_image"])

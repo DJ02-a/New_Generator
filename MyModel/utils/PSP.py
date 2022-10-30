@@ -79,7 +79,7 @@ class bottleneck_IR_SE(nn.Module):
 
 
 class GradualStyleEncoder(nn.Module):
-    def __init__(self, in_dim=3, out_dim=64):
+    def __init__(self, in_dim=3, out_dim=3):
         super(GradualStyleEncoder, self).__init__()
         blocks = get_blocks(50)
         self.input_layer = nn.Sequential(
@@ -132,4 +132,4 @@ class GradualStyleEncoder(nn.Module):
         p0 = self._upsample_add(self.latlayer4(p1), c0) # 64 256 256
         out= self.output_layer(p0)
 
-        return out # b 64 256 256
+        return p0, out # b 64 256 256 / b 3 h w

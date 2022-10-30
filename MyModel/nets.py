@@ -13,35 +13,41 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.input_size = input_size
         self.structure_encoder = GradualStyleEncoder(1)
-        self.mix_structure_encoder = GradualStyleEncoder(64)
         self.color_encoder = GradualStyleEncoder()
+        self.blend_encoder = GradualStyleEncoder(4)
         
         self.c_net = C_Net()
-        self.new_generator = My_Generator()
+        self.new_generator = My_Generator(64, 128, 512)
 
     def forward(self, gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot):
+        _gray_image = F.interpolate(gray_image, (256, 256))
+        _color_flip_image = F.interpolate(color_flip_image, (256, 256))
+        _gray_one_hot = F.interpolate(gray_one_hot, (256, 256))
+        _color_flip_one_hot = F.interpolate(color_flip_one_hot, (256,256))
         
-        gray_feature = self.structure_encoder(gray_image)
-        color_flip_feature = self.color_encoder(color_flip_image)
+        gray_feature, _ = self.structure_encoder(_gray_image)
+        color_flip_feature, _ = self.color_encoder(_color_flip_image)
+
+        # interpolate for c_net
+        # output shape : b 3 512 512
+        color_reference_image = self.c_net(gray_feature, color_flip_feature, _color_flip_image, _gray_one_hot, _color_flip_one_hot)
+        _color_reference_image = F.interpolate(color_reference_image, (512, 512))
         
-        transposed_feature_map, transposed_image, transposed_mask = self.transpose_components(gray_image, gray_feature, gray_one_hot)
-        mixed_feature_map = self.mix_structure_encoder(transposed_feature_map)
+        # blend color and structure
+        # input : b 4(3+1) 128 128 / output : b 64 128 128
+        blended_feature_map, blended_image = self.blend_encoder(torch.cat((color_reference_image, _gray_image), dim=1))
+        _blended_image = F.interpolate(blended_image, (512,512))
         
-        head_masks = torch.sum(transposed_mask[:,1:], dim=1).unsqueeze(1)
-        _mixed_feature_map = F.interpolate(mixed_feature_map,(128,128))
-        _transposed_mask = F.interpolate(transposed_mask, (128,128))
-        _color_flip_feature = F.interpolate(color_flip_feature, (128,128))
-        _color_flip_image = F.interpolate(color_flip_image, (128,128))
-        _color_flip_one_hot = F.interpolate(color_flip_one_hot, (128,128))
+        # get skin mean feature map
+        # output : b 64 128 128
+        mean_skin_feature_map, _, _ = self.fill_innerface_with_skin_mean(blended_feature_map, _gray_one_hot)
+        _mean_skin_feature_map = self.inference(mean_skin_feature_map, _gray_feature, _gray_one_hot,  _gray_feature, _gray_one_hot, _gray_feature, _gray_one_hot, _gray_feature, _gray_one_hot)
         
-        color_reference_image = self.c_net(_mixed_feature_map, _color_flip_feature, _color_flip_image, _transposed_mask, _color_flip_one_hot)
-        _color_reference_image = F.interpolate(color_reference_image,(512,512),mode='nearest')
-        mix_features = torch.cat((mixed_feature_map, _color_reference_image), dim=1)
-        
-        result = self.new_generator(mix_features)
+        result = self.new_generator(_mean_skin_feature_map, _mean_skin_feature_map)
+        head_masks = torch.sum(gray_one_hot[:,1:], dim=1, keepdim=True)
         result = result * head_masks + color_image * (1-head_masks)
 
-        return result, _color_reference_image, transposed_image, transposed_mask
+        return result, _color_reference_image, _blended_image
     
     def fill_innerface_with_skin_mean(self, feature_map, mask):
         b, c, _, _ = feature_map.size()
@@ -70,7 +76,12 @@ class Generator(nn.Module):
         head_masks = torch.stack(head_masks,dim=0)
         return _feature_map, head_masks, skin_means
 
-    def inference(self, base_feature_map, eye_brow_feature_map, eye_brow_mask, eye_feature_map, eye_mask, nose_feature_map, nose_mask, mouth_feature_map, mouth_mask):
+    def inference(self, base_feature_map, eye_brow_feature_map, eye_brow_one_hot, eye_feature_map, eye_one_hot, nose_feature_map, nose_one_hot, mouth_feature_map, mouth_one_hot):
+        eye_brow_mask = torch.sum(eye_brow_one_hot[:,2:4], dim=1, keepdim=True)
+        eye_mask = torch.sum(eye_one_hot[:,4:6], dim=1, keepdim=True)
+        mouth_mask = torch.sum(mouth_one_hot[:,6:9], dim=1, keepdim=True)
+        nose_mask = nose_one_hot[:,9].unsqueeze(1)
+        
         # switched_feature_map = torch.zeros_like(base_feature_map)
         switched_feature_map = base_feature_map
         switched_feature_map = switched_feature_map * (1 - eye_brow_mask) + eye_brow_feature_map * eye_brow_mask

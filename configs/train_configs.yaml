@@ -4,14 +4,14 @@
 model_id: New_Model_Face_Design_end2end
 
 # multi-GPUs
-use_mGPU: True
+use_mGPU: False
 
 # validation
-use_validation: True
+use_validation: False
 valid_dataset_root: ./assets/k-celeb
 
 # wandb
-use_wandb: True
+use_wandb: False
 wandb_alert_thres: 1000
 
 # root
