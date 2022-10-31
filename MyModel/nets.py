@@ -1,3 +1,4 @@
+from ctypes import Union
 import random
 import torch
 import torch.nn as nn
@@ -11,43 +12,166 @@ from MyModel.utils.PSP import GradualStyleEncoder
 class Generator(nn.Module):
     def __init__(self, input_size):
         super(Generator, self).__init__()
+        self.crop_size = 64
+        self.img_size = 128
         self.input_size = input_size
         self.structure_encoder = GradualStyleEncoder(1)
         self.color_encoder = GradualStyleEncoder()
         self.blend_encoder = GradualStyleEncoder(4)
         
-        self.c_net = C_Net()
+        self.c_net = C_Net(self.crop_size)
         self.new_generator = My_Generator(64, 128, 512)
 
-    def forward(self, gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot):
-        _gray_image = F.interpolate(gray_image, (256, 256))
-        _color_flip_image = F.interpolate(color_flip_image, (256, 256))
-        _gray_one_hot = F.interpolate(gray_one_hot, (256, 256))
-        _color_flip_one_hot = F.interpolate(color_flip_one_hot, (256,256))
-        
-        gray_feature, _ = self.structure_encoder(_gray_image)
-        color_flip_feature, _ = self.color_encoder(_color_flip_image)
 
-        # interpolate for c_net
-        # output shape : b 3 512 512
-        color_reference_image = self.c_net(gray_feature, color_flip_feature, _color_flip_image, _gray_one_hot, _color_flip_one_hot)
-        _color_reference_image = F.interpolate(color_reference_image, (512, 512))
+
+    def forward(self, gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot):
+        _gray_image = F.interpolate(gray_image,(self.img_size,self.img_size))
+        _color_flip_image = F.interpolate(color_flip_image,(self.img_size,self.img_size))
+        _gray_one_hot = F.interpolate(gray_one_hot,(self.img_size,self.img_size))
+        _color_flip_one_hot = F.interpolate(color_flip_one_hot,(self.img_size,self.img_size))
+        b,c,h,w = _gray_image.size()
         
-        # blend color and structure
-        # input : b 4(3+1) 128 128 / output : b 64 128 128
-        blended_feature_map, blended_image = self.blend_encoder(torch.cat((color_reference_image, _gray_image), dim=1))
-        _blended_image = F.interpolate(blended_image, (512,512))
+        # step 1 : get part of face component from gray image and mask
+        l_eyebrow_gray = _gray_image
+        r_eyebrow_gray = _gray_image
+        l_eye_gray = _gray_image
+        r_eye_gray = _gray_image
+        nose_gray = _gray_image
+        mouth_gray = _gray_image
         
-        # get skin mean feature map
-        # output : b 64 128 128
-        mean_skin_feature_map, _, _ = self.fill_innerface_with_skin_mean(blended_feature_map, _gray_one_hot)
-        _mean_skin_feature_map = self.inference(mean_skin_feature_map, _gray_feature, _gray_one_hot,  _gray_feature, _gray_one_hot, _gray_feature, _gray_one_hot, _gray_feature, _gray_one_hot)
+        l_eyebrow_gray_one_hot = _gray_one_hot
+        r_eyebrow_gray_one_hot = _gray_one_hot
+        l_eye_gray_one_hot = _gray_one_hot
+        r_eye_gray_one_hot = _gray_one_hot
+        nose_gray_one_hot = _gray_one_hot
+        mouth_gray_one_hot = _gray_one_hot
         
-        result = self.new_generator(_mean_skin_feature_map, _mean_skin_feature_map)
+        # fix 128 128 crop size
+        # one hot to component mask
+        resized_l_eyebrow, resized_l_eyebrow_one_hot = self.pp_transformation(l_eyebrow_gray, l_eyebrow_gray_one_hot, [2])
+        resized_r_eyebrow, resized_r_eyebrow_one_hot = self.pp_transformation(r_eyebrow_gray, r_eyebrow_gray_one_hot, [3])
+        resized_l_eye, resized_l_eye_one_hot = self.pp_transformation(l_eye_gray, l_eye_gray_one_hot, [4])
+        resized_r_eye, resized_r_eye_one_hot = self.pp_transformation(r_eye_gray, r_eye_gray_one_hot, [5])
+        resized_nose, resized_nose_one_hot = self.pp_transformation(nose_gray, nose_gray_one_hot, [9])
+        resized_mouth, resized_mouth_one_hot = self.pp_transformation(mouth_gray, mouth_gray_one_hot, [6,7,8])
+        
+        resized_l_eyebrow_feature, _ = self.structure_encoder(resized_l_eyebrow)
+        resized_r_eyebrow_feature, _ = self.structure_encoder(resized_r_eyebrow)
+        resized_l_eye_feature, _ = self.structure_encoder(resized_l_eye)
+        resized_r_eye_feature, _ = self.structure_encoder(resized_r_eye)
+        resized_nose_feature, _ = self.structure_encoder(resized_nose)
+        resized_mouth_feature, _ = self.structure_encoder(resized_mouth)
+        
+        color_flip_feature, _ = self.color_encoder(_color_flip_image)
+        
+        # C-Net
+        l_eyebrow_color_reference_image = self.c_net(resized_l_eyebrow_feature, color_flip_feature, _color_flip_image, resized_l_eyebrow_one_hot, _color_flip_one_hot)
+        r_eyebrow_color_reference_image = self.c_net(resized_r_eyebrow_feature, color_flip_feature, _color_flip_image, resized_r_eyebrow_one_hot, _color_flip_one_hot)
+        l_eye_color_reference_image = self.c_net(resized_l_eye_feature, color_flip_feature, _color_flip_image, resized_l_eye_one_hot, _color_flip_one_hot)
+        r_eye_color_reference_image = self.c_net(resized_r_eye_feature, color_flip_feature, _color_flip_image, resized_r_eye_one_hot, _color_flip_one_hot)
+        nose_color_reference_image = self.c_net(resized_nose_feature, color_flip_feature, _color_flip_image, resized_nose_one_hot, _color_flip_one_hot)
+        mouth_color_reference_image = self.c_net(resized_mouth_feature, color_flip_feature, _color_flip_image, resized_mouth_one_hot, _color_flip_one_hot)
+        
+        blend_l_eyebrow_feature, _ = self.blend_encoder(torch.cat((l_eyebrow_color_reference_image, resized_l_eyebrow),dim=1))
+        blend_r_eyebrow_feature, _ = self.blend_encoder(torch.cat((r_eyebrow_color_reference_image, resized_r_eyebrow),dim=1))
+        blend_l_eye_feature, _ = self.blend_encoder(torch.cat((l_eye_color_reference_image, resized_l_eye),dim=1))
+        blend_r_eye_feature, _ = self.blend_encoder(torch.cat((r_eye_color_reference_image, resized_r_eye),dim=1))
+        blend_nose_feature, _ = self.blend_encoder(torch.cat((nose_color_reference_image, resized_nose),dim=1))
+        blend_mouth_feature, _ = self.blend_encoder(torch.cat((mouth_color_reference_image, resized_mouth),dim=1))
+        
+        gray_image_feature, _ = self.structure_encoder(_gray_image)
+        gray_image_color_reference = self.c_net(gray_image_feature, color_flip_feature, _color_flip_image, _gray_one_hot, _color_flip_one_hot)
+        _gray_image_color_reference = F.interpolate(gray_image_color_reference,(self.img_size,self.img_size))
+        blend_gray_image_feature, _ = self.blend_encoder(torch.cat((_gray_image_color_reference, _gray_image),dim=1))
+        
+        new_mask = torch.zeros((b,1,h,w), device=gray_image.device)
+        new_feature_map = torch.zeros_like(gray_image_feature, device=gray_image.device)
+        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_l_eyebrow_feature, resized_l_eyebrow_one_hot, _gray_one_hot, [2])
+        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_r_eyebrow_feature, resized_r_eyebrow_one_hot, _gray_one_hot, [3])
+        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_l_eye_feature, resized_l_eye_one_hot, _gray_one_hot, [4])
+        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_r_eye_feature, resized_r_eye_one_hot, _gray_one_hot, [5])
+        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_nose_feature, resized_nose_one_hot, _gray_one_hot, [9])
+        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_mouth_feature, resized_mouth_one_hot, _gray_one_hot, [6,7,8])
+        new_feature_map = new_mask * new_feature_map + (1 - new_mask) * blend_gray_image_feature
+        
+        _new_feature_map = F.interpolate(new_feature_map, (self.img_size,self.img_size))
+        result = self.new_generator(_new_feature_map, _new_feature_map)
         head_masks = torch.sum(gray_one_hot[:,1:], dim=1, keepdim=True)
+        
+        
         result = result * head_masks + color_image * (1-head_masks)
 
-        return result, _color_reference_image, _blended_image
+        return result
+    
+    def pp_transformation(self, source_image, source_one_hot, indexes):
+        # resize b for  zero canvas * source image, 배수 -> 중앙 위치 파악하기, 마지막에 centor crop 128
+        b, c, h, w = source_one_hot.size()
+        
+        # get mask
+        whole_mask = torch.zeros((b,1,h,w), device=source_one_hot.device)
+        component_mask = torch.zeros((b, c, h, w), device=source_one_hot.device)
+        center_component_mask = torch.zeros((b,c,self.crop_size,self.crop_size), device=source_one_hot.device)
+        center_source_image_part_masked = torch.zeros((b,1,self.crop_size,self.crop_size), device=source_one_hot.device)
+        for index in indexes:
+            whole_mask[:,0] += source_one_hot[:,index]
+            component_mask[:,index] = source_one_hot[:,index]
+            
+        for b_idx in range(b):
+            if whole_mask[b_idx].sum() != 0:
+                y_pixels, x_pixels = torch.where(whole_mask[b_idx][0]==1)
+                mid_y, mid_x = y_pixels.type(torch.float32).mean().type(torch.int32), x_pixels.type(torch.float32).mean().type(torch.int32)
+                whole_mask_part     = transforms.functional.crop(whole_mask[b_idx], top=mid_y-self.crop_size//2, left=mid_x-self.crop_size//2, height=self.crop_size, width=self.crop_size)
+                component_mask_part = transforms.functional.crop(component_mask[b_idx], top=mid_y-self.crop_size//2, left=mid_x-self.crop_size//2, height=self.crop_size, width=self.crop_size)
+                source_image_part   = transforms.functional.crop(source_image[b_idx], top=mid_y-self.crop_size//2, left=mid_x-self.crop_size//2, height=self.crop_size, width=self.crop_size)
+                
+                component_mask_part[1] = (1 - whole_mask_part)    # mark skin region
+                _source_image_part_masked = source_image_part * whole_mask_part #Q!
+                            
+                # resize
+                y_multi, x_multi = random.uniform(0.8,1.2), random.uniform(0.8,1.2)      
+                resized_component_mask_part         = F.interpolate(component_mask_part.unsqueeze(0), scale_factor=(y_multi, x_multi)).squeeze()
+                resized_source_image_part_masked    = F.interpolate(_source_image_part_masked.unsqueeze(0), scale_factor=(y_multi, x_multi)).squeeze()
+                
+                center_component_mask[b_idx]           = transforms.CenterCrop(self.crop_size)(resized_component_mask_part)
+                center_source_image_part_masked[b_idx] = transforms.CenterCrop(self.crop_size)(resized_source_image_part_masked)
+            else:
+                center_component_mask[b_idx] = torch.zeros((c,self.crop_size,self.crop_size),device=component_mask.device)
+                center_source_image_part_masked[b_idx] = torch.zeros((1,self.crop_size,self.crop_size),device=source_image.device)
+
+        return center_source_image_part_masked, center_component_mask
+    
+    def overwrite_face_component_feature(self, canvas, mask_canvas, new_colored_component_feature, new_component_one_hot, origin_one_hot, indexes):
+        # b for  center crop 512 x,y roll
+        b, _, h, w = origin_one_hot.size()
+        new_component_mask = torch.zeros((b,1,self.crop_size,self.crop_size), device=new_colored_component_feature.device)
+        origin_masks = torch.zeros((b,1,h,w), device=new_colored_component_feature.device)
+        for index in indexes:
+            new_component_mask[:,0] += new_component_one_hot[:,index]
+            origin_masks[:,0] += origin_one_hot[:, index]
+            
+        new_component_mask = new_component_mask.clamp(0,1)
+        origin_masks = origin_masks.clamp(0,1)
+        
+        center_new_component_mask = transforms.CenterCrop(h)(new_component_mask)
+        center_new_component_feature = transforms.CenterCrop(h)(new_colored_component_feature)
+        for b_idx in range(b):
+            origin_mask = origin_masks[b_idx]
+            y_pixels, x_pixels = torch.where(origin_mask[0]==1)
+            
+            mid_y, mid_x = y_pixels.type(torch.float32).mean().type(torch.int32), x_pixels.type(torch.float32).mean().type(torch.int32)
+            mid_new_component_mask = torch.roll(center_new_component_mask[b_idx], shifts=(mid_y-h//2, mid_x-w//2), dims=(-2, -1))
+            mid_new_component_feature = torch.roll(center_new_component_feature[b_idx], shifts=(mid_y-h//2, mid_x-w//2), dims=(-2, -1))
+            
+            y_roll, x_roll = random.randrange(-5,5), random.randrange(-5,5)
+            moved_new_component_mask = torch.roll(mid_new_component_mask, shifts=(y_roll, x_roll), dims=(-2, -1))
+            moved_new_component_feature = torch.roll(mid_new_component_feature, shifts=(y_roll, x_roll), dims=(-2, -1))
+            
+            
+            union_mask = (origin_mask + moved_new_component_mask).clamp(0,1) #@#
+            mask_canvas[b_idx] += union_mask
+            canvas[b_idx] = moved_new_component_feature * union_mask + canvas[b_idx] * (1 - union_mask)
+            
+        return canvas, mask_canvas
     
     def fill_innerface_with_skin_mean(self, feature_map, mask):
         b, c, _, _ = feature_map.size()

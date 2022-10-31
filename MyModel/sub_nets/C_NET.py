@@ -3,10 +3,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class C_Net(nn.Module):
-    def __init__(self):
+    def __init__(self, size):
         super(C_Net, self).__init__()
+        self.img_size = size
+        
 
     def forward(self, gray_feature, rgb_feature, rgb_image, gray_label, rgb_label):
+        gray_feature = F.interpolate(gray_feature,(self.img_size,self.img_size))
+        rgb_feature = F.interpolate(rgb_feature, (self.img_size,self.img_size))
+        rgb_image = F.interpolate(rgb_image, (self.img_size,self.img_size))
+        gray_label= F.interpolate(gray_label, (self.img_size,self.img_size))
+        rgb_label = F.interpolate(rgb_label, (self.img_size,self.img_size))
         color_reference = self.do_RC(gray_feature, rgb_feature, rgb_image, gray_label, rgb_label)
 
         return color_reference 

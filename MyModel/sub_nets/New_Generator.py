@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from MyModel.utils.blocks import NewResnetBlock, ConvBlock
 
 class My_Generator(nn.Module):
-    def __init__(self, input_ch=67, input_size=128, output_size=512):
+    def __init__(self, input_ch=64, input_size=128, output_size=512):
         super(My_Generator, self).__init__()
 
         self.input_ch = input_ch
