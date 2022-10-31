@@ -84,15 +84,16 @@ class Generator(nn.Module):
         _gray_image_color_reference = F.interpolate(gray_image_color_reference,(self.img_size,self.img_size))
         blend_gray_image_feature, _ = self.blend_encoder(torch.cat((_gray_image_color_reference, _gray_image),dim=1))
         
+        union_mask = torch.zeros((b,1,h,w), device=gray_image.device)
         new_mask = torch.zeros((b,1,h,w), device=gray_image.device)
         new_feature_map = torch.zeros_like(gray_image_feature, device=gray_image.device)
-        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_l_eyebrow_feature, resized_l_eyebrow_one_hot, _gray_one_hot, [2])
-        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_r_eyebrow_feature, resized_r_eyebrow_one_hot, _gray_one_hot, [3])
-        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_l_eye_feature, resized_l_eye_one_hot, _gray_one_hot, [4])
-        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_r_eye_feature, resized_r_eye_one_hot, _gray_one_hot, [5])
-        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_nose_feature, resized_nose_one_hot, _gray_one_hot, [9])
-        new_feature_map, new_mask = self.overwrite_face_component_feature(new_feature_map, new_mask, blend_mouth_feature, resized_mouth_one_hot, _gray_one_hot, [6,7,8])
-        new_feature_map = new_mask * new_feature_map + (1 - new_mask) * blend_gray_image_feature
+        new_feature_map, union_mask, new_mask = self.overwrite_face_component_feature(new_feature_map, union_mask, new_mask, blend_l_eyebrow_feature, resized_l_eyebrow_one_hot, _gray_one_hot, [2])
+        new_feature_map, union_mask, new_mask = self.overwrite_face_component_feature(new_feature_map, union_mask, new_mask, blend_r_eyebrow_feature, resized_r_eyebrow_one_hot, _gray_one_hot, [3])
+        new_feature_map, union_mask, new_mask = self.overwrite_face_component_feature(new_feature_map, union_mask, new_mask, blend_l_eye_feature, resized_l_eye_one_hot, _gray_one_hot, [4])
+        new_feature_map, union_mask, new_mask = self.overwrite_face_component_feature(new_feature_map, union_mask, new_mask, blend_r_eye_feature, resized_r_eye_one_hot, _gray_one_hot, [5])
+        new_feature_map, union_mask, new_mask = self.overwrite_face_component_feature(new_feature_map, union_mask, new_mask, blend_nose_feature, resized_nose_one_hot, _gray_one_hot, [9])
+        new_feature_map, union_mask, new_mask = self.overwrite_face_component_feature(new_feature_map, union_mask, new_mask, blend_mouth_feature, resized_mouth_one_hot, _gray_one_hot, [6,7,8])
+        new_feature_map = union_mask * new_feature_map + (1 - union_mask) * blend_gray_image_feature
         
         _new_feature_map = F.interpolate(new_feature_map, (self.img_size,self.img_size))
         result = self.new_generator(_new_feature_map, _new_feature_map)
@@ -101,7 +102,7 @@ class Generator(nn.Module):
         
         result = result * head_masks + color_image * (1-head_masks)
 
-        return result
+        return result, new_mask
     
     def pp_transformation(self, source_image, source_one_hot, indexes):
         # resize b for  zero canvas * source image, 배수 -> 중앙 위치 파악하기, 마지막에 centor crop 128
@@ -128,7 +129,8 @@ class Generator(nn.Module):
                 _source_image_part_masked = source_image_part * whole_mask_part #Q!
                             
                 # resize
-                y_multi, x_multi = random.uniform(0.8,1.2), random.uniform(0.8,1.2)      
+                y_multi, x_multi = 1, 1   
+                # y_multi, x_multi = random.uniform(0.8,1.2), random.uniform(0.8,1.2)      
                 resized_component_mask_part         = F.interpolate(component_mask_part.unsqueeze(0), scale_factor=(y_multi, x_multi)).squeeze()
                 resized_source_image_part_masked    = F.interpolate(_source_image_part_masked.unsqueeze(0), scale_factor=(y_multi, x_multi)).squeeze()
                 
@@ -140,7 +142,7 @@ class Generator(nn.Module):
 
         return center_source_image_part_masked, center_component_mask
     
-    def overwrite_face_component_feature(self, canvas, mask_canvas, new_colored_component_feature, new_component_one_hot, origin_one_hot, indexes):
+    def overwrite_face_component_feature(self, canvas, mask_canvas, new_mask, new_colored_component_feature, new_component_one_hot, origin_one_hot, indexes):
         # b for  center crop 512 x,y roll
         b, _, h, w = origin_one_hot.size()
         new_component_mask = torch.zeros((b,1,self.crop_size,self.crop_size), device=new_colored_component_feature.device)
@@ -162,16 +164,18 @@ class Generator(nn.Module):
             mid_new_component_mask = torch.roll(center_new_component_mask[b_idx], shifts=(mid_y-h//2, mid_x-w//2), dims=(-2, -1))
             mid_new_component_feature = torch.roll(center_new_component_feature[b_idx], shifts=(mid_y-h//2, mid_x-w//2), dims=(-2, -1))
             
-            y_roll, x_roll = random.randrange(-5,5), random.randrange(-5,5)
+            y_roll, x_roll =0, 0
+            # y_roll, x_roll = random.randrange(-5,5), random.randrange(-5,5)
             moved_new_component_mask = torch.roll(mid_new_component_mask, shifts=(y_roll, x_roll), dims=(-2, -1))
             moved_new_component_feature = torch.roll(mid_new_component_feature, shifts=(y_roll, x_roll), dims=(-2, -1))
             
             
             union_mask = (origin_mask + moved_new_component_mask).clamp(0,1) #@#
             mask_canvas[b_idx] += union_mask
+            new_mask[b_idx] += moved_new_component_mask
             canvas[b_idx] = moved_new_component_feature * union_mask + canvas[b_idx] * (1 - union_mask)
             
-        return canvas, mask_canvas
+        return canvas, mask_canvas, new_mask
     
     def fill_innerface_with_skin_mean(self, feature_map, mask):
         b, c, _, _ = feature_map.size()

@@ -15,8 +15,8 @@ class MyModelLoss(LossInterface):
     def get_loss_G(self, dict, valid=False):
         L_G = 0.0
         
-        # _transposed_wo_transposed_mask = (torch.sum(dict["transposed_mask"],dim=1) - torch.sum(dict["transposed_mask"][:,1:10],dim=1)).unsqueeze(1)
-        # _real_wo_transposed_mask = torch.sum(dict["gray_one_hot"])
+        # origin_skin_mask = (1 - torch.sum(dict["gray_one_hot"][:,2:10],dim=1,keepdim=True))
+        # fake_skin_mask = F.interpolate((1 - dict["move_new_mask"][:,0].unsqueeze(1)),(512,512))
         if self.args.W_adv: # transposed_mask
             L_adv = (-dict["g_pred_fake"]).mean()
             L_G += self.args.W_adv * L_adv
