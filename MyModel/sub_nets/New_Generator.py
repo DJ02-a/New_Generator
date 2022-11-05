@@ -13,16 +13,16 @@ class My_Generator(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
 
-        self.resblock_0 = NewResnetBlock(self.input_ch, 512, 64)
-        self.resblock_1 = NewResnetBlock(512, 512, 64)
-        self.resblock_2 = NewResnetBlock(512, 512, 64)
-        self.resblock_3 = NewResnetBlock(512, 512, 64)
+        self.resblock_0 = NewResnetBlock(self.input_ch, 256, 64)
+        self.resblock_1 = NewResnetBlock(256, 256, 64)
+        self.resblock_2 = NewResnetBlock(256, 256, 64)
+        self.resblock_3 = NewResnetBlock(256, 256, 64)
         
         # up size
-        self.up_conv_0 = ConvBlock(512, 128, 3, 2, 1, norm='bn', transpose=True)
-        self.up_conv_1 = ConvBlock(128, 32, 3, 2, 1, norm='bn', transpose=True)
+        self.up_conv_0 = ConvBlock(256, 128, 3, 2, 1, norm='bn', activation='lrelu', transpose=True)
+        self.up_conv_1 = ConvBlock(128, 32, 3, 2, 1, norm='bn', activation='lrelu', transpose=True)
         self.color_conv = nn.Conv2d(32, 3, kernel_size=3, stride=1, padding=1)
-        self.activation = nn.Tanh()
+        # self.activation = nn.Tanh()
 
     # x == mix features
     def forward(self, x, mid_feature):
@@ -35,6 +35,6 @@ class My_Generator(nn.Module):
         x = self.up_conv_1(x)
         
         x = self.color_conv(x)
-        x = self.activation(x)
+        # x = self.activation(x)
         return x
        
