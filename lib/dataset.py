@@ -80,8 +80,8 @@ class SingleFaceDatasetValid(Dataset):
     def __init__(self, dataset_root_list, isMaster):
         self.img_size = 512
         
-        self.image_path_list = glob.glob('/home/jjy/Datasets/celeba/valid/images/*.*')[:40]
-        self.mask_path_list = glob.glob('/home/jjy/Datasets/celeba/valid/label/*.*')[:40]
+        self.image_path_list = glob.glob('/home/jjy/Datasets/celeba/train/images/*.*')[:40]
+        self.mask_path_list = glob.glob('/home/jjy/Datasets/celeba/train/label/*.*')[:40]
         
         self.transforms_gray = transforms.Compose([
             transforms.Resize((self.img_size,self.img_size)),

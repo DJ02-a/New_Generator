@@ -68,13 +68,12 @@ class MyNetModel(ModelInterface):
             self.dict["C_img"],
             self.dict["G_img"], 
             F.interpolate(self.dict['base_dict']['skin_ref']['C_ref'], (512,512)),
-            F.interpolate(self.dict['base_dict']['skin_ref']['C_img_colored'], (512,512)),
+            # F.interpolate(self.dict['base_dict']['skin_ref']['C_img_colored'], (512,512)),
             intermeidate_grid,
             F.interpolate(vis_mask, (512,512)),
             self.dict["fake_img"],
             ]
         
-
     def run_G(self, dict):
 
         fake_img, base_dict, comp_dict = self.G(dict["C_imgs"], dict["G_imgs"], dict["O_masks"])
@@ -86,13 +85,13 @@ class MyNetModel(ModelInterface):
         dict["fake_B_mask_union"] = F.interpolate(base_dict['fake']['B_mask_union'], (512,512)).clamp(0,1)
         dict['fake_O_mask'] = F.interpolate(base_dict['fake']['O_mask'],(512,512)).clamp(0,1)
 
-        # g_pred_fake, feat_fake = self.D(dict["fake_img"], None)
+        g_pred_fake, feat_fake = self.D(dict["fake_img"], None)
         # feat_real = self.D.get_feature(dict["C_img"])
-        g_pred_fake, _ = self.D(dict["fake_img"], None)
+        # g_pred_fake, _ = self.D(dict["fake_img"], None)
         # feat_fake = self.D.get_feature(dict["fake_img"]*(1-dict["fake_B_mask_union"]))
         # feat_real = self.D.get_feature(dict["C_img"]*(1-dict["fake_B_mask_union"]))
         
-        feat_fake = self.D.get_feature(dict["fake_img"])
+        # feat_fake = self.D.get_feature(dict["fake_img"])
         feat_real = self.D.get_feature(dict["C_img"])
         
         dict["g_pred_fake"] = g_pred_fake
@@ -118,7 +117,7 @@ class MyNetModel(ModelInterface):
         pbar = tqdm(self.valid_dataloader, desc='Run validate...')
         for G_img, C_img, O_mask in pbar:
             G_img, C_img, O_mask = G_img.to(self.gpu), C_img.to(self.gpu), O_mask.to(self.gpu)
-
+            # G_img
             self.valid_dict["G_img"] = G_img
             self.valid_dict["C_img"] = C_img
             self.valid_dict["O_mask"] = O_mask
@@ -151,7 +150,7 @@ class MyNetModel(ModelInterface):
             if len(intermeidate_grids) < 8: intermeidate_grids.append(intermeidate_grid)
             if len(result_grid) < 8: result_grid.append(self.valid_dict["fake_img"])
             if len(color_reference_grid) < 8: color_reference_grid.append(F.interpolate(self.valid_dict['base_dict']['skin_ref']['C_ref'], (512,512)))
-            if len(blend_color_reference_grid) < 8: blend_color_reference_grid.append(F.interpolate(self.valid_dict['base_dict']['skin_ref']['C_img_colored'], (512,512)))
+            # if len(blend_color_reference_grid) < 8: blend_color_reference_grid.append(F.interpolate(self.valid_dict['base_dict']['skin_ref']['C_img_colored'], (512,512)))
             
         self.loss_collector.loss_dict["valid_L_G"] /= len(self.valid_dataloader)
         self.loss_collector.loss_dict["valid_L_D"] /= len(self.valid_dataloader)
@@ -166,7 +165,7 @@ class MyNetModel(ModelInterface):
         self.valid_images = [
             torch.cat(input_grid, dim=0), 
             torch.cat(color_reference_grid, dim=0), 
-            torch.cat(blend_color_reference_grid, dim=0), 
+            # torch.cat(blend_color_reference_grid, dim=0), 
             torch.cat(intermeidate_grids, dim=0), 
             torch.cat(result_grid, dim=0), 
         ]

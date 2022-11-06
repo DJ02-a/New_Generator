@@ -21,7 +21,6 @@ class Generator(nn.Module):
         
         # self.c_net = C_Net()
         self.new_generator = My_Generator(64, 128, 512)
-        self.batch_size = 2
 
     def set_dict(self):
 
@@ -162,13 +161,9 @@ class Generator(nn.Module):
         }
 
     def set_components(self, C_imgs, G_imgs, O_masks):
-
-        # color_ref, skin_ref, Lbrow_ref, Rbrow_ref, Leye_ref, Reye_ref, nose_ref, mouth_ref
-
         self.base['color_ref']['C_img'] = torch.flip(C_imgs[0], dims=(-1,)) # [B 3 mH mW]
         self.base['color_ref']['O_mask'] = torch.flip(O_masks[0], dims=(-1,)) # [B 12 mH mW]
-        self.base['color_ref']['C_feature'] = self.structure_encoder(self.base['color_ref']['C_img'])[0] # [B 3 mH mW] -> [B 64 mH mW]
-        
+        self.base['color_ref']['C_feature'] = self.structure_encoder(self.base['color_ref']['C_img']) # [B 3 mH mW] -> [B 64 mH mW]
         self.base['skin_ref']['C_img'] = C_imgs[1] # [B 3 mH mW]
         self.base['skin_ref']['G_img'] = G_imgs[1] # [B 1 mH mW]
         self.base['skin_ref']['O_mask'] = O_masks[1] # [B 12 mH mW]
@@ -181,15 +176,21 @@ class Generator(nn.Module):
             comp['O_mask'] = O_mask # [B 12 mH mW]
             comp['B_mask'] = O_mask[:, index].unsqueeze(1) # [B 1 mH mW]
 
-    def forward(self, G_imgs, C_imgs, O_masks):
-        import pdb;pdb.set_trace()
-        self.set_dict()
-        self.set_components(G_imgs, C_imgs, O_masks)
+    def forward(self, C_imgs, G_imgs, O_masks):
+        self.batch_size, _, _, _ = C_imgs[0].size() # color_ref, skin_ref, Lbrow_ref, Rbrow_ref, Leye_ref, Reye_ref, nose_ref, mouth_ref
         
-        self.base['skin_ref']['C_feature'] = self.structure_encoder(self.base['skin_ref']['C_img'])[0] # [B 3 mH mW] -> [B 64 mH mW]
+        self.set_dict()
+        self.set_components(C_imgs, G_imgs, O_masks)
+        
+        self.base['skin_ref']['C_feature'] = self.structure_encoder(self.base['skin_ref']['C_img']) # [B 3 mH mW] -> [B 64 mH mW]
         self.base['skin_ref']['C_ref'] = self.do_RC(self.base['color_ref'], self.base['skin_ref'], 128) # [B 3 128 128] # 64? 128? 
-        self.base['skin_ref']['C_feature_colored'], self.base['skin_ref']['C_img_colored'] =\
+        # self.base['skin_ref']['C_feature_colored'] = torch.cat((self.base['skin_ref']['C_ref'],self.base['skin_ref']['C_feature']), dim=1) # 67
+        
+        # self.base['skin_ref']['C_feature_colored'], self.base['skin_ref']['C_img_colored'] =\
+        
+        self.base['skin_ref']['C_feature_colored'] =\
             self.blend_encoder(torch.cat((self.base['skin_ref']['C_ref'], self.base['skin_ref']['C_img']),dim=1)) # [B 64 128 128], [B 3 128 128]
+        self.base['skin_ref']['style_vectors'] = self.get_skin_style_vector(self.base['skin_ref']['C_feature_colored'])
 
         # import pdb; pdb.set_trace()
 
@@ -204,17 +205,18 @@ class Generator(nn.Module):
             self.get_partial(comp)
             
             # get GPM_color_blend
-            comp['CPM_feature'] = self.structure_encoder(comp['CPM_img'])[0] # [B 64 cH cW] # color, partial, masked image
+            comp['CPM_feature'] = self.structure_encoder(comp['CPM_img']) # [B 64 cH cW] # color, partial, masked image
             comp['CPM_ref'] = self.do_RC(self.base['color_ref'], comp, 64) # [B 3 cH cW] # 64? 128?
-            # print(comp['CPM_ref'].size())
-            # print(comp['CPM_img'].size())
-            comp['CPM_feature_colored'] = self.blend_encoder(torch.cat((comp['CPM_ref'], comp['CPM_img']), dim=1))[0] # [B 64 cH cW] # gray, partial, masked image
+            comp['CPM_feature_colored'] = torch.cat((comp['CPM_ref'], comp['CPM_feature']), dim=1)
+
+            comp['CPM_feature_colored'] = self.blend_encoder(torch.cat((comp['CPM_ref'], comp['CPM_img']), dim=1)) # [B 64 cH cW] # gray, partial, masked image
 
             # update new_feature_map, union_mask, fake_one_hot 
             self.add_partial(comp)
-        
+
         self.base['fake']['C_feature_mix'] = (1 - self.base['fake']['B_mask_union']) * self.base['skin_ref']['C_feature_colored'] + self.base['fake']['B_mask_union'] * self.base['fake']['C_feature_union']
-        # import pdb; pdb.set_trace()
+        self.base['fake']['C_feature_mix'] = self.get_scatter_skin_mean_feature_map(self.base['fake']['C_feature_mix'])
+        # import pdb; pdb.set_trace() # 
         
         result = self.new_generator(self.base['fake']['C_feature_mix'], self.base['fake']['C_feature_mix'])
         head_masks = torch.sum(self.base['skin_ref']['O_mask'][:, 1:], dim=1, keepdim=True)
@@ -291,7 +293,7 @@ class Generator(nn.Module):
             CPM_feature_colored_rollback = torch.roll(CPM_feature_colored_padded[b_idx], shifts=(cy-self.mid_size//2, cx-self.mid_size//2), dims=(-2, -1)) # [64 mH mW]
             
             shift_x, shift_y = 0, 0
-            # shift_x, shift_y = random.randrange(-3,3), random.randrange(-3,3)
+            # shift_x, shift_y = random.randrange(-5,5), random.randrange(-5,5)
             comp['shift'][b_idx][0], comp['shift'][b_idx][1] = shift_x, shift_y
             BP_mask_shifted = torch.roll(BP_mask_rollback, shifts=(shift_y, shift_x), dims=(-2, -1)) # [1 mH mW]
             CPM_feature_colored_shifted = torch.roll(CPM_feature_colored_rollback, shifts=(shift_y, shift_x), dims=(-2, -1)) # [64 mH mW]
@@ -305,7 +307,6 @@ class Generator(nn.Module):
             self.base['fake']['C_feature_union'][b_idx] += CPM_feature_colored_shifted * union_mask.unsqueeze(0) # [64 mH mW]
 
     def do_RC(self, color_ref, comp_ref, size):
-
         color_mask = F.interpolate(color_ref['O_mask'], (size,size))
         color_feature = F.interpolate(color_ref['C_feature'], (size,size))
         color_img = F.interpolate(color_ref['C_img'], (size,size))
@@ -317,7 +318,8 @@ class Generator(nn.Module):
             comp_feature = F.interpolate(comp_ref['CPM_feature'], (size,size))
             comp_mask = F.interpolate(comp_ref['OP_mask'],(size,size))
 
-        canvas = torch.ones_like(color_img) * -1
+        canvas = torch.zeros_like(color_img)
+        # canvas = torch.ones_like(color_img) * -1
         b, c, _, _ = comp_feature.size()
 
         for b_idx in range(b):
@@ -348,6 +350,30 @@ class Generator(nn.Module):
 
         return canvas
 
+    def get_skin_style_vector(self, C_feature_colored):
+        B, C, H, W = C_feature_colored.size()
+        style_vectors = []
+        mask = self.base['skin_ref']['O_mask']
+        for b_idx in range(B):
+            _skin_mask = mask[b_idx, 1].unsqueeze(0)
+            skin_area = torch.masked_select(C_feature_colored[b_idx],_skin_mask.bool()).reshape(C,-1)
+            skin_mean = skin_area.mean(1)
+            style_vectors.append(skin_mean)
+            
+        return style_vectors
+        
+    def get_scatter_skin_mean_feature_map(self, C_feature_mix):
+        B, C, H, W = C_feature_mix.size()
+        mask = (1 - torch.sum(self.base['fake']['O_mask'][:,2:10],dim=1,keepdim=True) - self.base['skin_ref']['O_mask'][:,0].unsqueeze(1) - torch.sum(self.base['skin_ref']['O_mask'][:,10:],dim=1,keepdim=True))
+        for b_idx in range(B):
+            skin_mean = self.base['skin_ref']['style_vectors'][b_idx]
+            
+            fake_skin_mask = mask[b_idx][0].unsqueeze(0).clamp(0,1)
+            inner_face_pixel = torch.sum(fake_skin_mask)
+            ch_skin_area = skin_mean.reshape(-1,1).repeat(1,int(inner_face_pixel.item()))
+            C_feature_mix[b_idx].masked_scatter_(fake_skin_mask.bool(), ch_skin_area)
+        return C_feature_mix
+        
     # def fill_innerface_with_skin_mean(self, feature_map, mask):
     #     b, c, _, _ = feature_map.size()
         

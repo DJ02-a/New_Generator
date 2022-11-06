@@ -41,10 +41,10 @@ class MyModelLoss(LossInterface):
             L_G += self.args.W_lpips * L_lpips
             self.loss_dict["L_lpips"] = round(L_lpips.item(), 4)
             
-        if self.args.W_blend:
-            L_blend = Loss.get_L1_loss(dict['base_dict']['skin_ref']['C_img_colored'], F.interpolate(dict["C_img"],(128,128)))
-            L_G += self.args.W_blend * L_blend
-            self.loss_dict["L_blend"] = round(L_blend.item(), 4)
+        # if self.args.W_blend:
+        #     L_blend = Loss.get_L1_loss(dict['base_dict']['skin_ref']['C_img_colored'], F.interpolate(dict["C_img"],(128,128)))
+        #     L_G += self.args.W_blend * L_blend
+        #     self.loss_dict["L_blend"] = round(L_blend.item(), 4)
             
         if self.args.W_component:
             L_component = self.get_component_loss(dict)

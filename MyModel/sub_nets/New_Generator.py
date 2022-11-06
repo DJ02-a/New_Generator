@@ -12,6 +12,8 @@ class My_Generator(nn.Module):
         self.input_ch = input_ch
         self.input_size = input_size
         self.output_size = output_size
+        self.feature_conv1 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
+        self.feature_conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
 
         self.resblock_0 = NewResnetBlock(self.input_ch, 256, 64)
         self.resblock_1 = NewResnetBlock(256, 256, 64)
@@ -26,6 +28,9 @@ class My_Generator(nn.Module):
 
     # x == mix features
     def forward(self, x, mid_feature):
+        x = self.feature_conv1(x)
+        mid_feature = self.feature_conv2(mid_feature)
+        
         x = self.resblock_0(x, mid_feature)
         x = self.resblock_1(x, mid_feature)
         x = self.resblock_2(x, mid_feature)

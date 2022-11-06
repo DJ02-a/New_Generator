@@ -67,7 +67,7 @@ class SPADE(nn.Module):
     def __init__(self, norm_nc, feature_ch):
         super().__init__()
 
-        param_free_norm_type = 'syncbatch'
+        param_free_norm_type = 'batch'
         ks = 3
 
         if param_free_norm_type == 'instance':
