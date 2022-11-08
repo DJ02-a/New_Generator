@@ -33,6 +33,8 @@ class Generator(nn.Module):
                 "scale": torch.zeros((self.batch_size, 2), device='cuda'), # scale_x, scale_y
                 "shift": torch.zeros((self.batch_size, 2), device='cuda'), # shift_x, shift_y
                 "center": torch.zeros((self.batch_size, 2), device='cuda'), # center_x, center_y
+                "components_center": torch.zeros((self.batch_size, 12, 2), device='cuda'), # center_x, center_y
+
 
                 "G_img": None,
                 "C_img": None,
@@ -168,6 +170,16 @@ class Generator(nn.Module):
         self.base['skin_ref']['C_img'] = C_imgs[1] # [B 3 mH mW]
         self.base['skin_ref']['G_img'] = G_imgs[1] # [B 1 mH mW]
         self.base['skin_ref']['O_mask'] = O_masks[1] # [B 12 mH mW]
+        
+        # get skin_ref center x,y point
+        for b_idx in range(self.batch_size):
+            for c_idx in range(12):
+                if self.base['skin_ref']['O_mask'][b_idx][c_idx].sum():
+                    ys, xs = torch.where(self.base['skin_ref']['O_mask'][b_idx][c_idx]==1)
+                    cx, cy = xs.type(torch.float32).mean().type(torch.int32), ys.type(torch.float32).mean().type(torch.int32)
+                    self.base['skin_ref']['components_center'][b_idx][c_idx][0] = int(cx)
+                    self.base['skin_ref']['components_center'][b_idx][c_idx][1] = int(cy)
+                    
 
         for component_name, C_img, G_img, O_mask in zip(self.comp, C_imgs[2:], G_imgs[2:], O_masks[2:]):
             comp = self.comp[component_name]
@@ -230,8 +242,8 @@ class Generator(nn.Module):
         for b_idx in range(self.batch_size):
             if B_mask[b_idx].sum():
                 cx, cy = comp['center'][b_idx]
-                # scale_x, scale_y = 1, 1
-                scale_x, scale_y = random.uniform(0.8,1.2), random.uniform(0.8,1.2) 
+                scale_x, scale_y = 1, 1
+                # scale_x, scale_y = random.uniform(0.8,1.2), random.uniform(0.8,1.2) 
                 comp['scale'][b_idx][0], comp['scale'][b_idx][1] = scale_x, scale_y
                 half_x, half_y = int(self.crop_size//2 * scale_x), int(self.crop_size//2 * scale_y)
                 cx, cy = int(cx), int(cy)
@@ -284,10 +296,10 @@ class Generator(nn.Module):
         CPM_feature_colored_padded = transforms.CenterCrop(self.mid_size)(CPM_feature_colored) # [B 64 mH mW] 128
 
         for b_idx in range(self.batch_size):
+            skin_cx, skin_cy = int(self.base['skin_ref']['components_center'][b_idx][index][0]), int(self.base['skin_ref']['components_center'][b_idx][index][1])
             cx, cy = int(comp['center'][b_idx][0]), int(comp['center'][b_idx][1]) # before 65 99 / roll(after) 65 101
-            BP_mask_rollback = torch.roll(BP_mask_padded[b_idx], shifts=(cy-self.mid_size//2, cx-self.mid_size//2), dims=(-2, -1)) # [1 mH mW]
-            # if v
-            CPM_feature_colored_rollback = torch.roll(CPM_feature_colored_padded[b_idx], shifts=(cy-self.mid_size//2, cx-self.mid_size//2), dims=(-2, -1)) # [64 mH mW]
+            BP_mask_rollback = torch.roll(BP_mask_padded[b_idx], shifts=(skin_cy-self.mid_size//2, skin_cx-self.mid_size//2), dims=(-2, -1)) # [1 mH mW]
+            CPM_feature_colored_rollback = torch.roll(CPM_feature_colored_padded[b_idx], shifts=(skin_cy-self.mid_size//2, skin_cx-self.mid_size//2), dims=(-2, -1)) # [64 mH mW]
             
             shift_x, shift_y = 0, 0
             # shift_x, shift_y = random.randrange(-3,3), random.randrange(-3,3)

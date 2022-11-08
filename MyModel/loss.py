@@ -81,13 +81,14 @@ class MyModelLoss(LossInterface):
                         # fake_comp = F.interpolate(fake_comp, (128, 128))
 
                         center_x, center_y = comp_dict['center'][b_idx]
+                        # center_x, center_y = comp_dict['center'][b_idx]
                         scale_x, scale_y = comp_dict['scale'][b_idx]
                         shift_x, shift_y = comp_dict['shift'][b_idx]
                         center_x, center_y, shift_x, shift_y = int(center_x), int(center_y), int(shift_x), int(shift_y)
                         half_x, half_y = int(crop_size//2 // scale_x), int(crop_size//2 // scale_y)
 
-                        real_comp_crop     = transforms.functional.crop(F.pad(real_comp,(64,64,64,64)), top=64+ (center_y-crop_size//2), left=64+ (center_x-crop_size//2), height= crop_size, width= crop_size)
-                        fake_comp_crop     = transforms.functional.crop(F.pad(fake_comp,(64,64,64,64)), top=64+ (center_y+shift_y-half_y), left=64+ (center_x+shift_x-half_x), height= 2*half_y, width= 2*half_x)
+                        real_comp_crop     = transforms.functional.crop(F.pad(real_comp,(half_x,half_x,half_y,half_y)), top=half_y + (center_y-crop_size//2), left=half_x + (center_x-crop_size//2), height= crop_size, width= crop_size)
+                        fake_comp_crop     = transforms.functional.crop(F.pad(fake_comp,(half_x,half_x,half_y,half_y)), top=half_y + (center_y+shift_y-half_y), left=half_x + (center_x+shift_x-half_x), height= 2*half_y, width= 2*half_x)
 
                         # real_comp_crop = real_comp[:, :, 4*(center_y-crop_size//2):4*(center_y+crop_size//2), 4*(center_x-crop_size//2):4*(center_x+crop_size//2)]
                         # fake_comp_crop = fake_comp[:, :, 4*(center_y+shift_y-half_y):4*(center_y+shift_y+half_y), 4*(center_x+shift_x-half_x):4*(center_x+shift_x+half_x)]

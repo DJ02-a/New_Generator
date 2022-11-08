@@ -43,7 +43,6 @@ class SingleFaceDatasetTrain(Dataset):
             item -= self.image_num_list[idx]
             idx += 1
             
-            
         image_path = self.image_path_list[idx][item]
         mask_path = self.mask_path_list[idx][item]
         
@@ -56,7 +55,25 @@ class SingleFaceDatasetTrain(Dataset):
         _mask = label_converter(mask) # face parsing -> simple
         mask_one_hot = to_one_hot(_mask) # [1, H, W] --> [12, H, W] (New label)
 
-        return self.transforms_gray(gray_image), self.transforms_color(color_image), mask_one_hot
+        rand_item = random.randrange(self.__len__())
+        rand_idx = 0
+        while rand_item >= self.image_num_list[rand_idx]:
+            rand_item -= self.image_num_list[rand_idx]
+            rand_idx += 1
+        
+        # idx = random.randrange(0, self.__len__()) 
+        component_img = Image.open(self.image_path_list[rand_idx][rand_item]).convert("RGB")
+        component_img_gray = component_img.convert("L")
+        component_img_gray_equ = cv2.equalizeHist(np.array(component_img_gray.convert("L")))
+        _component_img_gray_equ = Image.fromarray(component_img_gray_equ)
+        
+
+        component_mask = Image.open(self.mask_path_list[rand_idx][rand_item]).resize((self.img_size,self.img_size),Image.NEAREST)
+        _component_mask = label_converter(component_mask)
+        component_mask_one_hot = to_one_hot(_component_mask)
+
+        return self.transforms_gray(gray_image), self.transforms_color(color_image), mask_one_hot,\
+            self.transforms_gray(_component_img_gray_equ), self.transforms_color(component_img), component_mask_one_hot
 
     def __len__(self):
         return sum(self.image_num_list)
@@ -115,7 +132,24 @@ class SingleFaceDatasetValid(Dataset):
         _mask = label_converter(mask)
         mask_one_hot = to_one_hot(_mask)
 
-        return self.transforms_gray(gray_image), self.transforms_color(color_image), mask_one_hot
+        rand_item = random.randrange(self.__len__())
+        
+        # idx = random.randrange(0, self.__len__()) 
+        component_img = Image.open(self.image_path_list[rand_item]).convert("RGB")
+        component_img_gray = component_img.convert("L")
+        component_img_gray_equ = cv2.equalizeHist(np.array(component_img_gray.convert("L")))
+        _component_img_gray_equ = Image.fromarray(component_img_gray_equ)
+        
+
+        component_mask = Image.open(self.mask_path_list[rand_item]).resize((self.img_size,self.img_size),Image.NEAREST)
+        _component_mask = label_converter(component_mask)
+        component_mask_one_hot = to_one_hot(_component_mask)
+
+        return self.transforms_gray(gray_image), self.transforms_color(color_image), mask_one_hot,\
+            self.transforms_gray(_component_img_gray_equ), self.transforms_color(component_img), component_mask_one_hot
+
+
+        # return self.transforms_gray(gray_image), self.transforms_color(color_image), mask_one_hot
 
     def __len__(self):
         return len(self.image_path_list)

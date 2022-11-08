@@ -50,12 +50,14 @@ class ModelInterface(metaclass=abc.ABCMeta):
         if source and target are identical.
         """
         try:
-            gray_image, color_image, mask_one_hot = next(self.train_iterator)
+            gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot = next(self.train_iterator)
         except StopIteration:
             self.train_iterator = iter(self.train_dataloader)
-            gray_image, color_image, mask_one_hot = next(self.train_iterator)
-        gray_image, color_image, mask_one_hot = gray_image.to(self.gpu), color_image.to(self.gpu), mask_one_hot.to(self.gpu)
-        return gray_image, color_image, mask_one_hot
+            gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot\
+                 = next(self.train_iterator)
+        gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot\
+             = gray_image.to(self.gpu), color_image.to(self.gpu), mask_one_hot.to(self.gpu), component_gray.to(self.gpu), component_color.to(self.gpu), component_mask_one_hot.to(self.gpu)
+        return gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot
 
     def set_dataset(self):
         """
