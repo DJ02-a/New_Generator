@@ -230,8 +230,8 @@ class Generator(nn.Module):
         for b_idx in range(self.batch_size):
             if B_mask[b_idx].sum():
                 cx, cy = comp['center'][b_idx]
-                scale_x, scale_y = 1, 1
-                # scale_x, scale_y = random.uniform(0.8,1.2), random.uniform(0.8,1.2) 
+                # scale_x, scale_y = 1, 1
+                scale_x, scale_y = random.uniform(0.8,1.2), random.uniform(0.8,1.2) 
                 comp['scale'][b_idx][0], comp['scale'][b_idx][1] = scale_x, scale_y
                 half_x, half_y = int(self.crop_size//2 * scale_x), int(self.crop_size//2 * scale_y)
                 cx, cy = int(cx), int(cy)

@@ -89,11 +89,11 @@ class MyNetModel(ModelInterface):
         # g_pred_fake, feat_fake = self.D(dict["fake_img"], None)
         # feat_real = self.D.get_feature(dict["C_img"])
         g_pred_fake, _ = self.D(dict["fake_img"], None)
-        # feat_fake = self.D.get_feature(dict["fake_img"]*(1-dict["fake_B_mask_union"]))
-        # feat_real = self.D.get_feature(dict["C_img"]*(1-dict["fake_B_mask_union"]))
+        feat_fake = self.D.get_feature(dict["fake_img"]*(1-dict["fake_B_mask_union"]))
+        feat_real = self.D.get_feature(dict["C_img"]*(1-dict["fake_B_mask_union"]))
         
-        feat_fake = self.D.get_feature(dict["fake_img"])
-        feat_real = self.D.get_feature(dict["C_img"])
+        # feat_fake = self.D.get_feature(dict["fake_img"])
+        # feat_real = self.D.get_feature(dict["C_img"])
         
         dict["g_pred_fake"] = g_pred_fake
         dict["feat_fake"] = feat_fake
