@@ -6,8 +6,9 @@ from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 import glob
 from lib.utils_mask import label_converter, to_one_hot
-
+import cv2
 from lib import utils
+import numpy as np
 
 class SingleFaceDatasetTrain(Dataset):
     def __init__(self, dataset_root_list_images, dataset_root_list_masks, isMaster):
@@ -48,7 +49,9 @@ class SingleFaceDatasetTrain(Dataset):
         
         color_image = Image.open(image_path)
         gray_image = color_image.convert("L")
-
+        gray_image = cv2.equalizeHist(np.array(gray_image))
+        gray_image = Image.fromarray(gray_image)
+        
         mask = Image.open(mask_path).resize((self.img_size,self.img_size),Image.NEAREST)
         _mask = label_converter(mask) # face parsing -> simple
         mask_one_hot = to_one_hot(_mask) # [1, H, W] --> [12, H, W] (New label)
@@ -105,6 +108,8 @@ class SingleFaceDatasetValid(Dataset):
         
         color_image = Image.open(image_path)
         gray_image = color_image.convert("L")
+        gray_image = cv2.equalizeHist(np.array(gray_image))
+        gray_image = Image.fromarray(gray_image)
         
         mask = Image.open(mask_path).resize((self.img_size,self.img_size),Image.NEAREST)
         _mask = label_converter(mask)

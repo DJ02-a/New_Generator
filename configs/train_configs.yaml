@@ -17,12 +17,12 @@ wandb_alert_thres: 1000
 # root
 train_dataset_root_list_images: [
                 '/home/jjy/Datasets/celeba/train/images',
-                '/home/compu/dataset/ffhq70k'
+                '/home/compu/dataset/filter_ffhq'
             ]
 
 train_dataset_root_list_masks: [
                 '/home/jjy/Datasets/celeba/train/label',
-                '/home/compu/dataset/ffhq70k_mask'
+                '/home/compu/dataset/filter_ffhq_mask'
             ]
 
 
@@ -41,24 +41,24 @@ W_adv: 1
 W_vgg: 10
 W_feat: 10
 W_lpips: 10
-W_blend: 10
+W_blend: 0
 W_component: 0
 
 # hyperparameters
 same_prob: 0.2
-batch_per_gpu: 2
-valid_batch_per_gpu: 2
+batch_per_gpu: 4
+valid_batch_per_gpu: 4
 max_step: 400000
 
 # log cycle
 loss_cycle: 10
-test_cycle: 500
-ckpt_cycle: 500
+test_cycle: 100
+ckpt_cycle: 5000
 
 # ckpt path
 # load checkpoints from ./train_result/{ckpt_id}/ckpt/G_{ckpt_step}.pt
 # if ckpt_id is empty, load G_latest.pt and D_latest.pt
 # Note that an empty space is None, but None is "None"
-load_ckpt: True
-ckpt_id: 9.all_eval
+load_ckpt: False
+ckpt_id:
 ckpt_step:

@@ -68,7 +68,7 @@ class MyNetModel(ModelInterface):
             self.dict["C_img"],
             self.dict["G_img"], 
             F.interpolate(self.dict['base_dict']['skin_ref']['C_ref'], (512,512)),
-            # F.interpolate(self.dict['base_dict']['skin_ref']['C_img_colored'], (512,512)),
+            F.interpolate(self.dict['base_dict']['skin_ref']['C_img_colored'], (512,512)),
             intermeidate_grid,
             F.interpolate(vis_mask, (512,512)),
             self.dict["fake_img"],
@@ -102,6 +102,8 @@ class MyNetModel(ModelInterface):
     def run_D(self, dict):
         d_pred_fake, _  = self.D(dict['fake_img'].detach(), None)
         d_pred_real, _  = self.D(dict['C_img'], None)
+        # d_pred_fake, _  = self.D(dict['fake_img'].detach()*(1-dict["fake_B_mask_union"]).detach(), None)
+        # d_pred_real, _  = self.D(dict['C_img']*(1-dict["fake_B_mask_union"]).detach(), None)
 
         dict["d_pred_fake"] = d_pred_fake
         dict["d_pred_real"] = d_pred_real
@@ -112,7 +114,7 @@ class MyNetModel(ModelInterface):
         self.G.eval()
         self.D.eval()
         
-        input_grid, result_grid, intermeidate_grids, color_reference_grid, vis_mask_grid = [], [], [], [], []
+        input_grid, result_grid, intermeidate_grids, color_reference_grid, blend_color_reference_grid = [], [], [], [], []
         pbar = tqdm(self.valid_dataloader, desc='Run validate...')
         for G_img, C_img, O_mask in pbar:
             G_img, C_img, O_mask = G_img.to(self.gpu), C_img.to(self.gpu), O_mask.to(self.gpu)
@@ -144,17 +146,12 @@ class MyNetModel(ModelInterface):
                 intermeidate_grid_1 = torch.cat((Lbrow_intermediate_image, Leye_intermediate_image), dim=-1)
                 intermeidate_grid_2 = torch.cat((nose_intermediate_image,mouth_intermediate_image), dim=-1)
                 intermeidate_grid = torch.cat((intermeidate_grid_1, intermeidate_grid_2), dim=-2)
-                
-                vis_mask = torch.ones_like(self.valid_dict['base_dict']['fake']['B_mask_union']) * -1
-                vis_mask += self.valid_dict['base_dict']['skin_ref']['O_mask'][:,1].unsqueeze(1)*.5 + torch.sum(self.valid_dict['base_dict']['fake']['O_mask'][:,2:10], dim=1, keepdim=True).clamp(0,1)
-
 # ,
             if len(input_grid) < 8: input_grid.append(self.valid_dict["C_img"])
             if len(intermeidate_grids) < 8: intermeidate_grids.append(intermeidate_grid)
             if len(result_grid) < 8: result_grid.append(self.valid_dict["fake_img"])
             if len(color_reference_grid) < 8: color_reference_grid.append(F.interpolate(self.valid_dict['base_dict']['skin_ref']['C_ref'], (512,512)))
-            if len(vis_mask_grid) < 8: vis_mask_grid.append(F.interpolate(vis_mask, (512,512)))
-            # if len(blend_color_reference_grid) < 8: blend_color_reference_grid.append(F.interpolate(self.valid_dict['base_dict']['skin_ref']['C_img_colored'], (512,512)))
+            if len(blend_color_reference_grid) < 8: blend_color_reference_grid.append(F.interpolate(self.valid_dict['base_dict']['skin_ref']['C_img_colored'], (512,512)))
             
         self.loss_collector.loss_dict["valid_L_G"] /= len(self.valid_dataloader)
         self.loss_collector.loss_dict["valid_L_D"] /= len(self.valid_dataloader)
@@ -162,7 +159,6 @@ class MyNetModel(ModelInterface):
         self.loss_collector.val_print_loss()
 
         self.G.train()
-        self.G.c_net.eval()
         self.D.train()
 
 
@@ -170,9 +166,8 @@ class MyNetModel(ModelInterface):
         self.valid_images = [
             torch.cat(input_grid, dim=0), 
             torch.cat(color_reference_grid, dim=0), 
-            # torch.cat(blend_color_reference_grid, dim=0), 
+            torch.cat(blend_color_reference_grid, dim=0), 
             torch.cat(intermeidate_grids, dim=0), 
-            torch.cat(vis_mask_grid, dim=0), 
             torch.cat(result_grid, dim=0), 
         ]
 

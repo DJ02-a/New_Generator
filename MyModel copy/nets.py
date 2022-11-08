@@ -7,7 +7,7 @@ import torchvision.transforms as transforms
 
 # from MyModel.sub_nets.C_NET import C_Net
 from MyModel.sub_nets.New_Generator import My_Generator
-from packages import Color_Transfer_Net
+from packages import New_G
 
 class Generator(nn.Module):
     def __init__(self):
@@ -15,9 +15,14 @@ class Generator(nn.Module):
         self.crop_size = 128
         self.mid_size = 256
         self.img_size = 512
+        # self.structure_encoder = GradualStyleEncoder()
+        # # self.partial_encoder = GradualStyleEncoder()
+        # self.blend_encoder = GradualStyleEncoder(6)
+        self.new_g = New_G(128)
         
-        self.c_net = Color_Transfer_Net()
-        self.new_generator = My_Generator(67, 128, 512)
+        
+        # self.c_net = C_Net()
+        self.new_generator = My_Generator(32, 128, 512)
 
     def set_dict(self):
 
@@ -43,9 +48,9 @@ class Generator(nn.Module):
             },
 
             "fake":{
-                "C_feature": torch.zeros((self.batch_size, 67, self.mid_size ,self.mid_size), device='cuda'), # plz check channel size
-                "C_feature_mix": torch.zeros((self.batch_size, 67, self.mid_size ,self.mid_size), device='cuda'), # plz check channel size
-                'C_feature_union': torch.zeros((self.batch_size, 67, self.mid_size, self.mid_size), device='cuda'),
+                "C_feature": torch.zeros((self.batch_size, 32, self.mid_size ,self.mid_size), device='cuda'), # plz check channel size
+                "C_feature_mix": torch.zeros((self.batch_size, 32, self.mid_size ,self.mid_size), device='cuda'), # plz check channel size
+                'C_feature_union': torch.zeros((self.batch_size, 32, self.mid_size, self.mid_size), device='cuda'),
                 'O_mask': torch.zeros((self.batch_size, 12, self.mid_size, self.mid_size), device='cuda'),
                 'B_mask': torch.zeros((self.batch_size, 1, self.mid_size, self.mid_size), device='cuda'),
                 'O_mask_union': torch.zeros((self.batch_size, 12, self.mid_size, self.mid_size), device='cuda'),
@@ -182,11 +187,16 @@ class Generator(nn.Module):
         self.set_dict()
         self.set_components(G_imgs, C_imgs, O_masks)
         
-        with torch.no_grad():
-            self.base['skin_ref']['C_feature'], self.base['color_ref']['C_feature'], self.base['skin_ref']['C_ref'] = \
-                self.c_net(self.base['skin_ref']['G_img'].repeat(1,3,1,1), self.base['color_ref']['C_img'], self.base['skin_ref']['O_mask'], self.base['color_ref']['O_mask'], 64)
-            self.base['skin_ref']['C_feature_colored'] = torch.cat((self.base['skin_ref']['C_feature'], self.base['skin_ref']['C_ref']), dim=1)    
+        # self.base['skin_ref']['C_feature'] = self.structure_encoder(self.base['skin_ref']['C_img'])[0] # [B 3 mH mW] -> [B 64 mH mW]
+        # self.base['skin_ref']['C_ref'] = self.do_RC(self.base['color_ref'], self.base['skin_ref'], 128) # [B 3 128 128] # 64? 128? 
+        # self.base['skin_ref']['C_feature_colored'], self.base['skin_ref']['C_img_colored'] =\
+        #     self.blend_encoder(torch.cat((self.base['skin_ref']['C_ref'], self.base['skin_ref']['C_img']),dim=1)) # [B 64 128 128], [B 3 128 128]
 
+        # b, 3, 256, 256 / b 32 256 256
+        self.base['skin_ref']['C_img_colored'], self.base['skin_ref']['C_feature_colored'], self.base['skin_ref']['C_ref'] = \
+            self.new_g.generator(self.base['skin_ref']['G_img'].repeat(1,3,1,1), self.base['color_ref']['C_img'], self.base['skin_ref']['O_mask'], self.base['color_ref']['O_mask'], 64) # 
+        # self.base['skin_ref']['C_feature_colored'] = F.interpolate(self.base['skin_ref']['C_feature_colored'], (128,128))
+        
         for component_name in self.comp:
             comp = self.comp[component_name]
             # get center of component mask
@@ -197,19 +207,27 @@ class Generator(nn.Module):
                     
             self.get_partial(comp)
             
-            with torch.no_grad():
-                comp['CPM_feature'], _, comp['CPM_ref'] = \
-                    self.c_net(comp['GPM_img'].repeat(1,3,1,1), self.base['color_ref']['C_img'], comp['OP_mask'], self.base['color_ref']['O_mask'], 128)
-                comp['CPM_feature_colored'] = torch.cat((comp['CPM_feature'], comp['CPM_ref']), dim=1)    
+            # # get GPM_color_blend
+            # comp['CPM_feature'] = self.structure_encoder(comp['CPM_img'])[0] # [B 64 cH cW] # color, partial, masked image
+            # comp['CPM_ref'] = self.do_RC(self.base['color_ref'], comp, 64) # [B 3 cH cW] # 64? 128?
+            # # print(comp['CPM_ref'].size())
+            # # print(comp['CPM_img'].size())
+            # comp['CPM_feature_colored'] = self.blend_encoder(torch.cat((comp['CPM_ref'], comp['CPM_img']), dim=1))[0] # [B 64 cH cW] # gray, partial, masked image
+            
+            # with torch.no_grad():
+                
+            comp['CPM_ref'], comp['CPM_feature_colored'], _ = \
+                self.new_g.generator(comp['GPM_img'].repeat(1,3,1,1), self.base['color_ref']['C_img'], comp['OP_mask'], self.base['color_ref']['O_mask'], 128) # 
 
+            comp['CPM_ref'] = F.interpolate(comp['CPM_ref'],(128,128))
+            comp['CPM_feature_colored'] = F.interpolate(comp['CPM_feature_colored'],(128,128))
+                
             # update new_feature_map, union_mask, fake_one_hot 
             self.add_partial(comp)
-            
         self.base['fake']['C_feature_mix'] = (1 - self.base['fake']['B_mask_union']) * self.base['skin_ref']['C_feature_colored'] + self.base['fake']['B_mask_union'] * self.base['fake']['C_feature_union']
         # import pdb; pdb.set_trace()
 
         result = self.new_generator(self.base['fake']['C_feature_mix'], self.base['fake']['C_feature_mix'])
-        
         head_masks = torch.sum(self.base['skin_ref']['O_mask'][:, 1:], dim=1, keepdim=True)
         head_masks = F.interpolate(head_masks, (self.img_size, self.img_size))
         result = F.interpolate(result, (self.img_size, self.img_size))
@@ -231,21 +249,15 @@ class Generator(nn.Module):
             if B_mask[b_idx].sum():
                 cx, cy = comp['center'][b_idx]
                 scale_x, scale_y = 1, 1
-                # scale_x, scale_y = random.uniform(0.8,1.2), random.uniform(0.8,1.2) 
+                # scale_x, scale_y = random.uniform(0.9,1.1), random.uniform(0.9,1.1) 
                 comp['scale'][b_idx][0], comp['scale'][b_idx][1] = scale_x, scale_y
                 half_x, half_y = int(self.crop_size//2 * scale_x), int(self.crop_size//2 * scale_y)
                 cx, cy = int(cx), int(cy)
                 # 
                 try:
-                        
-                    CP_img     = transforms.functional.crop(F.pad(C_img[b_idx],(half_x,half_x,half_y,half_y)), top=half_y+cy-half_y, left=half_x+cx-half_x, height=half_y*2, width=half_x*2)
-                    GP_img     = transforms.functional.crop(F.pad(G_img[b_idx],(half_x,half_x,half_y,half_y)), top=half_y+cy-half_y, left=half_x+cx-half_x, height=half_y*2, width=half_x*2)
-                    BP_mask     = transforms.functional.crop(F.pad(B_mask[b_idx],(half_x,half_x,half_y,half_y)), top=half_y+cy-half_y, left=half_x+cx-half_x, height=half_y*2, width=half_x*2)
-                        
-                    # CP_img     = transforms.functional.crop(F.pad(C_img[b_idx],(64,64,64,64)), top=64+cy-half_y, left=64+cx-half_x, height=half_y*2, width=half_x*2)
-                    # GP_img     = transforms.functional.crop(F.pad(G_img[b_idx],(64,64,64,64)), top=64+cy-half_y, left=64+cx-half_x, height=half_y*2, width=half_x*2)
-                    # BP_mask     = transforms.functional.crop(F.pad(B_mask[b_idx],(64,64,64,64)), top=64+cy-half_y, left=64+cx-half_x, height=half_y*2, width=half_x*2)
-                    
+                    CP_img     = transforms.functional.crop(F.pad(C_img[b_idx],(64,64,64,64)), top=64+cy-self.crop_size//2, left=64+cx-self.crop_size//2, height=self.crop_size, width=self.crop_size)
+                    GP_img     = transforms.functional.crop(F.pad(G_img[b_idx],(64,64,64,64)), top=64+cy-self.crop_size//2, left=64+cx-self.crop_size//2, height=self.crop_size, width=self.crop_size)
+                    BP_mask     = transforms.functional.crop(F.pad(B_mask[b_idx],(64,64,64,64)), top=64+cy-self.crop_size//2, left=64+cx-self.crop_size//2, height=self.crop_size, width=self.crop_size)
                     
                     # bp_mask_ys, bp_mask_xs = torch.where(BP_mask[b_idx,0]==1)
                     # bp_mask_mid_y, bp_mask_mid_x = bp_mask_ys.type(torch.float32).mean().type(torch.int32), bp_mask_xs.type(torch.float32).mean().type(torch.int32)
