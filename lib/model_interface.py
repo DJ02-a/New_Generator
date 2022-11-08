@@ -50,19 +50,20 @@ class ModelInterface(metaclass=abc.ABCMeta):
         if source and target are identical.
         """
         try:
-            gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot = next(self.train_iterator)
+            gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot = next(self.train_iterator)
         except StopIteration:
             self.train_iterator = iter(self.train_dataloader)
-            gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot = next(self.train_iterator)
-        gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot = gray_image.to(self.gpu), color_image.to(self.gpu), color_flip_image.to(self.gpu), gray_one_hot.to(self.gpu), color_flip_one_hot.to(self.gpu)
-        return gray_image, color_image, color_flip_image, gray_one_hot, color_flip_one_hot
-
+            gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot\
+                 = next(self.train_iterator)
+        gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot\
+             = gray_image.to(self.gpu), color_image.to(self.gpu), mask_one_hot.to(self.gpu), component_gray.to(self.gpu), component_color.to(self.gpu), component_mask_one_hot.to(self.gpu)
+        return gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot
 
     def set_dataset(self):
         """
         Initialize dataset using the dataset paths specified in the command line arguments.
         """
-        self.train_dataset = SingleFaceDatasetTrain(self.args.train_dataset_root_list, self.args.isMaster)
+        self.train_dataset = SingleFaceDatasetTrain(self.args.train_dataset_root_list_images, self.args.train_dataset_root_list_masks, self.args.isMaster)
         if self.args.valid_dataset_root:
             self.valid_dataset = SingleFaceDatasetValid(self.args.valid_dataset_root, self.args.isMaster)
 

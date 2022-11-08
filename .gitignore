@@ -1,7 +1,7 @@
 train_result/
 wandb/
 *.zip
-
+*.png
 # to remain gitkeep
 !packages/
 packages/*

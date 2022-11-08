@@ -17,9 +17,9 @@ face_parsing_converter = {
     8 : 1,
     9 : 0,
     10 : 9,
-    11 : 6,
-    12 : 7,
-    13 : 8,
+    11 : 6, #@#
+    12 : 6, #@#
+    13 : 6, #@#
     14 : 11,
     15 : 0,
     16 : 0,
@@ -59,9 +59,13 @@ def label_converter(before_label):
         
     # 4 5
     kernel = np.ones((3, 3), np.uint8)
-    for dilate_idx in [4,5]:
+    for dilate_idx in [2,3,4,5,6,9]:
+        if dilate_idx in [4,5]:
+            iter = 5
+        else:
+            iter = 1
         eye_mask = np.where(canvas==dilate_idx,1,0)
-        dilated_eye_mask = cv2.dilate(eye_mask.astype(np.uint8), kernel, iterations=5)
+        dilated_eye_mask = cv2.dilate(eye_mask.astype(np.uint8), kernel, iterations=iter)
         canvas = canvas * (1-dilated_eye_mask) + (dilated_eye_mask * dilate_idx) * (dilated_eye_mask)
 
     
@@ -81,7 +85,7 @@ def to_one_hot(Xt):
     Xt_ = torch.reshape(Xt_,(1,1,h,w))
     one_hot_Xt = torch.FloatTensor(1, c, h, w).zero_()
     one_hot_Xt_ = one_hot_Xt.scatter_(1, Xt_, 1.0)
-    one_hot_Xt_ = F.interpolate(one_hot_Xt_,(h,w),mode='bilinear')
+    one_hot_Xt_ = F.interpolate(one_hot_Xt_,(h,w),mode='nearest')
     return one_hot_Xt_.squeeze() 
 
 def vis_mask(one_hot_mask, name=None, grid_result=False):

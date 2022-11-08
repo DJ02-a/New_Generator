@@ -4,21 +4,27 @@
 model_id: New_Model_Face_Design_end2end
 
 # multi-GPUs
-use_mGPU: True
+use_mGPU: False
 
 # validation
 use_validation: True
 valid_dataset_root: ./assets/k-celeb
 
 # wandb
-use_wandb: True
+use_wandb: False
 wandb_alert_thres: 1000
 
 # root
-train_dataset_root_list: [
-                '../dataset/CelebHQ',
-                '../dataset/ffhq16k'
+train_dataset_root_list_images: [
+                '/home/jjy/Datasets/celeba/train/images',
+                '/home/compu/dataset/filter_ffhq'
             ]
+
+train_dataset_root_list_masks: [
+                '/home/jjy/Datasets/celeba/train/label',
+                '/home/compu/dataset/filter_ffhq_mask'
+            ]
+
 
 save_root: train_result
 
@@ -35,17 +41,18 @@ W_adv: 1
 W_vgg: 10
 W_feat: 10
 W_lpips: 10
-W_struc: 10
+W_blend: 0
+W_component: 0
 
 # hyperparameters
 same_prob: 0.2
-batch_per_gpu: 2
-valid_batch_per_gpu: 1
+batch_per_gpu: 4
+valid_batch_per_gpu: 4
 max_step: 400000
 
 # log cycle
 loss_cycle: 10
-test_cycle: 500
+test_cycle: 100
 ckpt_cycle: 5000
 
 # ckpt path
@@ -53,5 +60,5 @@ ckpt_cycle: 5000
 # if ckpt_id is empty, load G_latest.pt and D_latest.pt
 # Note that an empty space is None, but None is "None"
 load_ckpt: False
-ckpt_id: 
+ckpt_id:
 ckpt_step:
