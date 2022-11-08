@@ -6,20 +6,16 @@ import os
 import glob
 
 def get_all_images(dataset_root_list):
-    image_path_list = []
-    image_num_list = []
+    image_paths = []
 
     for dataset_root in dataset_root_list:
-        imgpaths_in_root = glob.glob(f'{dataset_root}/*.*g')
+        image_paths += glob.glob(f'{dataset_root}/*.*g')
 
         for root, dirs, _ in os.walk(dataset_root):
             for dir in dirs:
-                imgpaths_in_root += glob.glob(f'{root}/{dir}/*.*g')
+                image_paths += glob.glob(f'{root}/{dir}/*.*g')
 
-        image_path_list.append(imgpaths_in_root)
-        image_num_list.append(len(imgpaths_in_root))
-
-    return image_path_list, image_num_list
+    return image_paths
 
 def requires_grad(model, flag=True):
     for p in model.parameters():

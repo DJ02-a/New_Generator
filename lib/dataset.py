@@ -5,154 +5,304 @@ import random
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 import glob
-from lib.utils_mask import label_converter, to_one_hot
+# from lib.utils_mask import label_converter, to_one_hot
+from lib.utils_mask import label_converter, face_mask2one_hot, part_mask2one_hot, converter
 import cv2
 from lib import utils
 import numpy as np
 
 class SingleFaceDatasetTrain(Dataset):
-    def __init__(self, dataset_root_list_images, dataset_root_list_masks, isMaster):
-        self.img_size = 512
+    def __init__(self, args, isMaster):
+        self.args = args
+        self.face_size = 512
+        self.part_size = 128
+        self._transforms()
         
-        self.image_path_list, self.image_num_list = utils.get_all_images(dataset_root_list_images)
-        self.mask_path_list, self.mask_num_list = utils.get_all_images(dataset_root_list_masks)
+        self.num_dict = {
+            'color':0,
+            'head':0,
+            'l_brow':0,
+            'r_brow':0,
+            'l_eye':0,
+            'r_eye':0,
+            'nose':0,
+            'mouth':0,
+        }
         
-        # self.image_path_list = glob.glob('/home/jjy/Datasets/celeba/train/images/*.*')
-        # self.mask_path_list = glob.glob('/home/jjy/Datasets/celeba/train/label/*.*')
         
-        self.transforms_gray = transforms.Compose([
-            transforms.Resize((self.img_size,self.img_size)),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5), (0.5))
-        ])
+        self.image_path_list = utils.get_all_images(self.args.train_color_images)[:-40]
+        self.mask_path_list = utils.get_all_images(self.args.train_color_masks)[:-40]
+        self.num_dict['color'] = len(self.image_path_list)
+        self.num_dict['head'] = len(self.image_path_list)
         
-        self.transforms_color = transforms.Compose([
-            transforms.Resize((self.img_size,self.img_size)),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
+        self.l_brow_path_list =  utils.get_all_images(self.args.train_l_brow_images)[:-40]
+        self.mask_l_brow_path_list =  utils.get_all_images(self.args.train_l_brow_mask)[:-40]
+        self.num_dict['l_brow'] = len(self.l_brow_path_list)
         
-        if isMaster:
-            print(f"Dataset of {self.__len__()} images constructed for the training.")
-            print(f"Dataset of {sum(self.mask_num_list)} masks constructed for the training.")
-
-
-    def __getitem__(self, item):
-        idx = 0
-        while item >= self.image_num_list[idx]:
-            item -= self.image_num_list[idx]
-            idx += 1
-            
-        image_path = self.image_path_list[idx][item]
-        mask_path = self.mask_path_list[idx][item]
+        self.r_brow_path_list =  utils.get_all_images(self.args.train_r_brow_images)[:-40]
+        self.mask_r_brow_path_list =  utils.get_all_images(self.args.train_r_brow_mask)[:-40]
+        self.num_dict['r_brow'] = len(self.r_brow_path_list)
         
-        color_image = Image.open(image_path)
-        gray_image = color_image.convert("L")
-        gray_image = cv2.equalizeHist(np.array(gray_image))
-        gray_image = Image.fromarray(gray_image)
+        self.l_eye_path_list =  utils.get_all_images(self.args.train_l_eye_images)[:-40]
+        self.mask_l_eye_path_list =  utils.get_all_images(self.args.train_l_eye_mask)[:-40]
+        self.num_dict['l_eye'] = len(self.l_eye_path_list)
         
-        mask = Image.open(mask_path).resize((self.img_size,self.img_size),Image.NEAREST)
-        _mask = label_converter(mask) # face parsing -> simple
-        mask_one_hot = to_one_hot(_mask) # [1, H, W] --> [12, H, W] (New label)
-
-        rand_item = random.randrange(self.__len__())
-        rand_idx = 0
-        while rand_item >= self.image_num_list[rand_idx]:
-            rand_item -= self.image_num_list[rand_idx]
-            rand_idx += 1
+        self.r_eye_path_list =  utils.get_all_images(self.args.train_r_eye_images)[:-40]
+        self.mask_r_eye_path_list =  utils.get_all_images(self.args.train_r_eye_mask)[:-40]
+        self.num_dict['r_eye'] = len(self.r_eye_path_list)
         
-        # idx = random.randrange(0, self.__len__()) 
-        component_img = Image.open(self.image_path_list[rand_idx][rand_item]).convert("RGB")
-        component_img_gray = component_img.convert("L")
-        component_img_gray_equ = cv2.equalizeHist(np.array(component_img_gray.convert("L")))
-        _component_img_gray_equ = Image.fromarray(component_img_gray_equ)
+        self.nose_path_list =  utils.get_all_images(self.args.train_nose_images)[:-40]
+        self.mask_nose_path_list =  utils.get_all_images(self.args.train_nose_mask)[:-40]
+        self.num_dict['nose'] = len(self.nose_path_list)
         
-
-        component_mask = Image.open(self.mask_path_list[rand_idx][rand_item]).resize((self.img_size,self.img_size),Image.NEAREST)
-        _component_mask = label_converter(component_mask)
-        component_mask_one_hot = to_one_hot(_component_mask)
-
-        return self.transforms_gray(gray_image), self.transforms_color(color_image), mask_one_hot,\
-            self.transforms_gray(_component_img_gray_equ), self.transforms_color(component_img), component_mask_one_hot
-
-    def __len__(self):
-        return sum(self.image_num_list)
-
-    # def __getitem__(self, item):
         
-    #     image_path = self.image_path_list[item]
-    #     mask_path = self.mask_path_list[item]
+        self.mouth_path_list =  utils.get_all_images(self.args.train_mouth_images)[:-40]
+        self.mask_mouth_path_list =  utils.get_all_images(self.args.train_mouth_mask)[:-40]
+        self.num_dict['mouth'] = len(self.mouth_path_list)
         
-    #     color_image = Image.open(image_path)
-    #     gray_image = color_image.convert("L")
         
-    #     mask = Image.open(mask_path).resize((self.img_size,self.img_size),Image.NEAREST)
-    #     _mask = label_converter(mask) # face parsing -> simple
-    #     mask_one_hot = to_one_hot(_mask) # [1, H, W] --> [12, H, W] (New label)
-
-    #     return self.transforms_gray(gray_image), self.transforms_color(color_image), mask_one_hot
-
-    # def __len__(self):
-    #     return len(self.image_path_list)
-
-
-class SingleFaceDatasetValid(Dataset):
-    def __init__(self, dataset_root_list, isMaster):
-        self.img_size = 512
-        
-        self.image_path_list = glob.glob('/home/jjy/Datasets/celeba/valid/images/*.*')[:40]
-        self.mask_path_list = glob.glob('/home/jjy/Datasets/celeba/valid/label/*.*')[:40]
-        
-        self.transforms_gray = transforms.Compose([
-            transforms.Resize((self.img_size,self.img_size)),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5), (0.5))
-        ])
-        
-        self.transforms_color = transforms.Compose([
-            transforms.Resize((self.img_size,self.img_size)),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
         
         if isMaster:
-            print(f"Dataset of {self.__len__()} images constructed for the training.")
+            print(f"Image Dataset of {self.num_dict['color']} image constructed for the training.")
+            print(f"L brow Dataset of {self.num_dict['head']} image constructed for the training.")
+            print(f"R brow Dataset of {self.num_dict['l_brow']} image constructed for the training.")
+            print(f"L eye Dataset of {self.num_dict['r_brow']} image constructed for the training.")
+            print(f"R eye Dataset of {self.num_dict['l_eye']} image constructed for the training.")
+            print(f"Nose Dataset of {self.num_dict['r_eye']} image constructed for the training.")
+            print(f"Nose Dataset of {self.num_dict['nose']} image constructed for the training.")
+            print(f"Mouth Dataset of {self.num_dict['mouth']} image constructed for the training.")
 
-    def __getitem__(self, item):
+    def __getitem__(self, _):
         
-        image_path = self.image_path_list[item]
-        mask_path = self.mask_path_list[item]
-        
-        color_image = Image.open(image_path)
-        gray_image = color_image.convert("L")
-        gray_image = cv2.equalizeHist(np.array(gray_image))
-        gray_image = Image.fromarray(gray_image)
-        
-        mask = Image.open(mask_path).resize((self.img_size,self.img_size),Image.NEAREST)
-        _mask = label_converter(mask)
-        mask_one_hot = to_one_hot(_mask)
-
-        rand_item = random.randrange(self.__len__())
-        
-        # idx = random.randrange(0, self.__len__()) 
-        component_img = Image.open(self.image_path_list[rand_item]).convert("RGB")
-        component_img_gray = component_img.convert("L")
-        component_img_gray_equ = cv2.equalizeHist(np.array(component_img_gray.convert("L")))
-        _component_img_gray_equ = Image.fromarray(component_img_gray_equ)
+        color_img, color_gray, color_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'color')
+        head_img, head_gray, head_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'head')
+        l_brow_img, l_brow_gray, l_brow_mask = self.data_pp(self.l_brow_path_list, self.mask_l_brow_path_list, False, 'l_brow')
+        r_brow_img, r_brow_gray, r_brow_mask = self.data_pp(self.r_brow_path_list, self.mask_r_brow_path_list, False, 'r_brow')
+        l_eye_img, l_eye_gray, l_eye_mask = self.data_pp(self.l_eye_path_list, self.mask_l_eye_path_list, False, 'l_eye')
+        r_eye_img, r_eye_gray, r_eye_mask = self.data_pp(self.r_eye_path_list, self.mask_r_eye_path_list, False, 'r_eye')
+        nose_img, nose_gray, nose_mask = self.data_pp(self.nose_path_list, self.mask_nose_path_list, False, 'nose')
+        mouth_img, mouth_gray, mouth_mask = self.data_pp(self.mouth_path_list, self.mask_mouth_path_list, False, 'mouth')
         
 
-        component_mask = Image.open(self.mask_path_list[rand_item]).resize((self.img_size,self.img_size),Image.NEAREST)
-        _component_mask = label_converter(component_mask)
-        component_mask_one_hot = to_one_hot(_component_mask)
-
-        return self.transforms_gray(gray_image), self.transforms_color(color_image), mask_one_hot,\
-            self.transforms_gray(_component_img_gray_equ), self.transforms_color(component_img), component_mask_one_hot
-
-
-        # return self.transforms_gray(gray_image), self.transforms_color(color_image), mask_one_hot
+        return color_img, color_gray, color_mask, head_img, head_gray, head_mask, l_brow_img, l_brow_gray, l_brow_mask, \
+                r_brow_img, r_brow_gray, r_brow_mask, l_eye_img, l_eye_gray, l_eye_mask, r_eye_img, r_eye_gray, r_eye_mask, \
+                    nose_img, nose_gray, nose_mask, mouth_img, mouth_gray, mouth_mask
 
     def __len__(self):
         return len(self.image_path_list)
+    
+    def data_pp(self, image_path_list, mask_path_list, equalizeHist=False, part=None):    
+        idx = random.randint(0, self.num_dict[part]-1)
+        image_path = image_path_list[idx]
+        mask_path = mask_path_list[idx]
+        
+        color_image = Image.open(image_path)
+        gray_image = color_image.convert("L")
+        mask = Image.open(mask_path)
+        if equalizeHist:
+            gray_image = cv2.equalizeHist(np.array(gray_image))
+            gray_image = Image.fromarray(gray_image)
+
+        if part in ['head','color']:
+            color_tensor = self.face_transforms_color(color_image)
+            gray_tensor = self.face_transforms_gray(gray_image)
+            _mask = label_converter(mask) # face parsing -> simple
+            mask_one_hot = face_mask2one_hot(_mask, 512) # [1, H, W] --> [12, H, W] (New label)
+            if part == 'color':
+                skin_pixels = torch.masked_select(color_tensor, mask_one_hot[1].bool()).reshape(3, -1)
+                self.skin_mean = torch.mean(skin_pixels, dim=1).unsqueeze(1)
+            
+        else:     
+            color_tensor = self.part_transforms_color(color_image)
+            gray_tensor = self.part_transforms_gray(gray_image)
+            mask = mask.resize((self.part_size,self.part_size),Image.NEAREST)
+            mask_one_hot = part_mask2one_hot(mask, part)
+            
+            color_tensor = self.fill_skin_region(color_tensor, mask_one_hot, part)
+
+        return color_tensor, gray_tensor, mask_one_hot
+    
+    def fill_skin_region(self, color_tensor, mask_one_hot, part):
+        c, h, w = color_tensor.shape
+        ch_idx = converter[part]['label'][1]
+        # color_pixels = torch.masked_select(color_tensor, (1-mask_one_hot[ch_idx]).bool()).reshape(c, -1) # 3, pixel_num
+        # mean_color = torch.mean(color_pixels, dim=1).unsqueeze(1) # n 3
+        scatter_pixel_num = (h * w) - mask_one_hot[ch_idx].bool().sum()
+        mean_colors = self.skin_mean.repeat(1, int(scatter_pixel_num))
+        color_tensor.masked_scatter_((1 - mask_one_hot[ch_idx]).bool(), mean_colors)
+        
+        return color_tensor
+    
+    def _transforms(self):
+        self.face_transforms_gray = transforms.Compose([
+            transforms.Resize((self.face_size,self.face_size)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5), (0.5))
+        ])
+        
+        self.face_transforms_color = transforms.Compose([
+            transforms.Resize((self.face_size,self.face_size)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+        
+        self.part_transforms_gray = transforms.Compose([
+            transforms.Resize((self.part_size,self.part_size)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5), (0.5))
+        ])
+        
+        self.part_transforms_color = transforms.Compose([
+            transforms.Resize((self.part_size,self.part_size)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
+class SingleFaceDatasetValid(Dataset):
+    def __init__(self, args, isMaster):
+        self.args = args
+        self.face_size = 512
+        self.part_size = 128
+        self._transforms()
+        
+        self.num_dict = {
+            'color':0,
+            'head':0,
+            'l_brow':0,
+            'r_brow':0,
+            'l_eye':0,
+            'r_eye':0,
+            'nose':0,
+            'mouth':0,
+        }
+        
+        
+        self.image_path_list = utils.get_all_images(self.args.train_color_images)[-40:]
+        self.mask_path_list = utils.get_all_images(self.args.train_color_masks)[-40:]
+        self.num_dict['color'] = len(self.image_path_list)
+        self.num_dict['head'] = len(self.image_path_list)
+        
+        self.l_brow_path_list =  utils.get_all_images(self.args.train_l_brow_images)[-40:]
+        self.mask_l_brow_path_list =  utils.get_all_images(self.args.train_l_brow_mask)[-40:]
+        self.num_dict['l_brow'] = len(self.l_brow_path_list)
+        
+        self.r_brow_path_list =  utils.get_all_images(self.args.train_r_brow_images)[-40:]
+        self.mask_r_brow_path_list =  utils.get_all_images(self.args.train_r_brow_mask)[-40:]
+        self.num_dict['r_brow'] = len(self.r_brow_path_list)
+        
+        self.l_eye_path_list =  utils.get_all_images(self.args.train_l_eye_images)[-40:]
+        self.mask_l_eye_path_list =  utils.get_all_images(self.args.train_l_eye_mask)[-40:]
+        self.num_dict['l_eye'] = len(self.l_eye_path_list)
+        
+        self.r_eye_path_list =  utils.get_all_images(self.args.train_r_eye_images)[-40:]
+        self.mask_r_eye_path_list =  utils.get_all_images(self.args.train_r_eye_mask)[-40:]
+        self.num_dict['r_eye'] = len(self.r_eye_path_list)
+        
+        self.nose_path_list =  utils.get_all_images(self.args.train_nose_images)[-40:]
+        self.mask_nose_path_list =  utils.get_all_images(self.args.train_nose_mask)[-40:]
+        self.num_dict['nose'] = len(self.nose_path_list)
+        
+        
+        self.mouth_path_list =  utils.get_all_images(self.args.train_mouth_images)[-40:]
+        self.mask_mouth_path_list =  utils.get_all_images(self.args.train_mouth_mask)[-40:]
+        self.num_dict['mouth'] = len(self.mouth_path_list)
+        
+        
+        
+        if isMaster:
+            print(f"Image Dataset of {self.num_dict['color']} image constructed for the training.")
+            print(f"L brow Dataset of {self.num_dict['head']} image constructed for the training.")
+            print(f"R brow Dataset of {self.num_dict['l_brow']} image constructed for the training.")
+            print(f"L eye Dataset of {self.num_dict['r_brow']} image constructed for the training.")
+            print(f"R eye Dataset of {self.num_dict['l_eye']} image constructed for the training.")
+            print(f"Nose Dataset of {self.num_dict['r_eye']} image constructed for the training.")
+            print(f"Nose Dataset of {self.num_dict['nose']} image constructed for the training.")
+            print(f"Mouth Dataset of {self.num_dict['mouth']} image constructed for the training.")
+
+    def __getitem__(self, _):
+        color_img, color_gray, color_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'color')
+        head_img, head_gray, head_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'head')
+        l_brow_img, l_brow_gray, l_brow_mask = self.data_pp(self.l_brow_path_list, self.mask_l_brow_path_list, False, 'l_brow')
+        r_brow_img, r_brow_gray, r_brow_mask = self.data_pp(self.r_brow_path_list, self.mask_r_brow_path_list, False, 'r_brow')
+        l_eye_img, l_eye_gray, l_eye_mask = self.data_pp(self.l_eye_path_list, self.mask_l_eye_path_list, False, 'l_eye')
+        r_eye_img, r_eye_gray, r_eye_mask = self.data_pp(self.r_eye_path_list, self.mask_r_eye_path_list, False, 'r_eye')
+        nose_img, nose_gray, nose_mask = self.data_pp(self.nose_path_list, self.mask_nose_path_list, False, 'nose')
+        mouth_img, mouth_gray, mouth_mask = self.data_pp(self.mouth_path_list, self.mask_mouth_path_list, False, 'mouth')
+        
+
+        return color_img, color_gray, color_mask, head_img, head_gray, head_mask, l_brow_img, l_brow_gray, l_brow_mask, \
+                r_brow_img, r_brow_gray, r_brow_mask, l_eye_img, l_eye_gray, l_eye_mask, r_eye_img, r_eye_gray, r_eye_mask, \
+                    nose_img, nose_gray, nose_mask, mouth_img, mouth_gray, mouth_mask
+
+    def __len__(self):
+        return len(self.image_path_list)
+    
+    def data_pp(self, image_path_list, mask_path_list, equalizeHist=False, part=None):    
+        idx = random.randint(0, self.num_dict[part]-1)
+        image_path = image_path_list[idx]
+        mask_path = mask_path_list[idx]
+        
+        color_image = Image.open(image_path)
+        gray_image = color_image.convert("L")
+        mask = Image.open(mask_path)
+        if equalizeHist:
+            gray_image = cv2.equalizeHist(np.array(gray_image))
+            gray_image = Image.fromarray(gray_image)
+
+        if part in ['head','color']:
+            color_tensor = self.face_transforms_color(color_image)
+            gray_tensor = self.face_transforms_gray(gray_image)
+            _mask = label_converter(mask) # face parsing -> simple
+            mask_one_hot = face_mask2one_hot(_mask, 512) # [1, H, W] --> [12, H, W] (New label)
+            if part == 'color':
+                skin_pixels = torch.masked_select(color_tensor, mask_one_hot[1].bool()).reshape(3, -1)
+                self.skin_mean = torch.mean(skin_pixels, dim=1).unsqueeze(1)
+            
+        else:     
+            color_tensor = self.part_transforms_color(color_image)
+            gray_tensor = self.part_transforms_gray(gray_image)
+            mask = mask.resize((self.part_size,self.part_size),Image.NEAREST)
+            mask_one_hot = part_mask2one_hot(mask, part)
+            
+            color_tensor = self.fill_skin_region(color_tensor, mask_one_hot, part)
+
+        return color_tensor, gray_tensor, mask_one_hot
+    
+    def fill_skin_region(self, color_tensor, mask_one_hot, part):
+        c, h, w = color_tensor.shape
+        ch_idx = converter[part]['label'][1]
+        # color_pixels = torch.masked_select(color_tensor, (1-mask_one_hot[ch_idx]).bool()).reshape(c, -1) # 3, pixel_num
+        # mean_color = torch.mean(color_pixels, dim=1).unsqueeze(1) # n 3
+        scatter_pixel_num = (h * w) - mask_one_hot[ch_idx].bool().sum()
+        mean_colors = self.skin_mean.repeat(1, int(scatter_pixel_num))
+        color_tensor.masked_scatter_((1 - mask_one_hot[ch_idx]).bool(), mean_colors)
+        
+        return color_tensor
+    
+    def _transforms(self):
+        self.face_transforms_gray = transforms.Compose([
+            transforms.Resize((self.face_size,self.face_size)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5), (0.5))
+        ])
+        
+        self.face_transforms_color = transforms.Compose([
+            transforms.Resize((self.face_size,self.face_size)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+        
+        self.part_transforms_gray = transforms.Compose([
+            transforms.Resize((self.part_size,self.part_size)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5), (0.5))
+        ])
+        
+        self.part_transforms_color = transforms.Compose([
+            transforms.Resize((self.part_size,self.part_size)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
 
 class PairedFaceDatasetTrain(Dataset):
     def __init__(self, dataset_root_list, isMaster, same_prob=0.2):

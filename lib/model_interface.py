@@ -50,22 +50,33 @@ class ModelInterface(metaclass=abc.ABCMeta):
         if source and target are identical.
         """
         try:
-            gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot = next(self.train_iterator)
+            color_img, color_gray, color_mask, skin_img, skin_gray, skin_mask, l_brow_img, l_brow_gray, l_brow_mask, \
+                r_brow_img, r_brow_gray, r_brow_mask, l_eye_img, l_eye_gray, l_eye_mask, r_eye_img, r_eye_gray, r_eye_mask, \
+                    nose_img, nose_gray, nose_mask, mouth_img, mouth_gray, mouth_mask = next(self.train_iterator)
         except StopIteration:
             self.train_iterator = iter(self.train_dataloader)
-            gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot\
-                 = next(self.train_iterator)
-        gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot\
-             = gray_image.to(self.gpu), color_image.to(self.gpu), mask_one_hot.to(self.gpu), component_gray.to(self.gpu), component_color.to(self.gpu), component_mask_one_hot.to(self.gpu)
-        return gray_image, color_image, mask_one_hot, component_gray, component_color, component_mask_one_hot
+            color_img, color_gray, color_mask, skin_img, skin_gray, skin_mask, l_brow_img, l_brow_gray, l_brow_mask, \
+                r_brow_img, r_brow_gray, r_brow_mask, l_eye_img, l_eye_gray, l_eye_mask, r_eye_img, r_eye_gray, r_eye_mask, \
+                    nose_img, nose_gray, nose_mask, mouth_img, mouth_gray, mouth_mask = next(self.train_iterator)
+                    
+        color_img, color_gray, color_mask, skin_img, skin_gray, skin_mask, l_brow_img, l_brow_gray, l_brow_mask, \
+                r_brow_img, r_brow_gray, r_brow_mask, l_eye_img, l_eye_gray, l_eye_mask, r_eye_img, r_eye_gray, r_eye_mask, \
+                    nose_img, nose_gray, nose_mask, mouth_img, mouth_gray, mouth_mask = \
+            color_img.to(self.gpu), color_gray.to(self.gpu), color_mask.to(self.gpu), skin_img.to(self.gpu), skin_gray.to(self.gpu), skin_mask.to(self.gpu), l_brow_img.to(self.gpu), l_brow_gray.to(self.gpu), l_brow_mask.to(self.gpu), \
+                r_brow_img.to(self.gpu), r_brow_gray.to(self.gpu), r_brow_mask.to(self.gpu), l_eye_img.to(self.gpu), l_eye_gray.to(self.gpu), l_eye_mask.to(self.gpu), r_eye_img.to(self.gpu), r_eye_gray.to(self.gpu), r_eye_mask.to(self.gpu), \
+                    nose_img.to(self.gpu), nose_gray.to(self.gpu), nose_mask.to(self.gpu), mouth_img.to(self.gpu), mouth_gray.to(self.gpu), mouth_mask.to(self.gpu)
+                    
+        return color_img, color_gray, color_mask, skin_img, skin_gray, skin_mask, l_brow_img, l_brow_gray, l_brow_mask, \
+                r_brow_img, r_brow_gray, r_brow_mask, l_eye_img, l_eye_gray, l_eye_mask, r_eye_img, r_eye_gray, r_eye_mask, \
+                    nose_img, nose_gray, nose_mask, mouth_img, mouth_gray, mouth_mask
 
     def set_dataset(self):
         """
         Initialize dataset using the dataset paths specified in the command line arguments.
         """
-        self.train_dataset = SingleFaceDatasetTrain(self.args.train_dataset_root_list_images, self.args.train_dataset_root_list_masks, self.args.isMaster)
+        self.train_dataset = SingleFaceDatasetTrain(self.args, self.args.isMaster)
         if self.args.valid_dataset_root:
-            self.valid_dataset = SingleFaceDatasetValid(self.args.valid_dataset_root, self.args.isMaster)
+            self.valid_dataset = SingleFaceDatasetValid(self.args, self.args.isMaster)
 
     def set_data_iterator(self):
         """

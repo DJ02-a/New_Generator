@@ -14,17 +14,24 @@ valid_dataset_root: ./assets/k-celeb
 use_wandb: False
 wandb_alert_thres: 1000
 
-# root
-train_dataset_root_list_images: [
-                '/home/jjy/Datasets/celeba/train/images',
-                '/home/compu/dataset/filter_ffhq'
-            ]
+# train dataset
+train_color_images: ['/home/compu/dataset/facial_parts_dataset/ffhq_img']
+train_color_masks: ['/home/compu/dataset/facial_parts_dataset/ffhq_mask']
+train_l_brow_images: ['/home/compu/dataset/facial_parts_dataset/Lbrow_img']
+train_l_brow_mask: ['/home/compu/dataset/facial_parts_dataset/Lbrow_mask']
+train_r_brow_images: ['/home/compu/dataset/facial_parts_dataset/Rbrow_img']
+train_r_brow_mask: ['/home/compu/dataset/facial_parts_dataset/Rbrow_mask']
+train_l_eye_images: ['/home/compu/dataset/facial_parts_dataset/Leye_img']
+train_l_eye_mask: ['/home/compu/dataset/facial_parts_dataset/Leye_mask']
+train_r_eye_images: ['/home/compu/dataset/facial_parts_dataset/Reye_img']
+train_r_eye_mask: ['/home/compu/dataset/facial_parts_dataset/Reye_mask']
+train_nose_images: ['/home/compu/dataset/facial_parts_dataset/nose_img']
+train_nose_mask: ['/home/compu/dataset/facial_parts_dataset/nose_mask']
+train_mouth_images: ['/home/compu/dataset/facial_parts_dataset/mouth_img']
+train_mouth_mask: ['/home/compu/dataset/facial_parts_dataset/mouth_mask']
 
-train_dataset_root_list_masks: [
-                '/home/jjy/Datasets/celeba/train/label',
-                '/home/compu/dataset/filter_ffhq_mask'
-            ]
 
+# valid dataset
 
 save_root: train_result
 
