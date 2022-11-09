@@ -8,19 +8,19 @@ converter = {
     # label name : original, result
     'background': {
         'label':[0, 0],
-        'dilate':1,
+        'dilate':0,
         },
     'head'      : {
         'label':[1, 1],
-        'dilate':1,
+        'dilate':0,
         },
     'l_brow'    : {
         'label':[2, 2],
-        'dilate':1,
+        'dilate':0,
         },
     'r_brow'    : {
         'label':[3, 3],
-        'dilate':1,
+        'dilate':0,
         },
     'l_eye'     : {
         'label':[4, 4],
@@ -32,55 +32,55 @@ converter = {
         },
     'eye_g'     : {
         'label':[6, 0],
-        'dilate':1,
+        'dilate':0,
         },
     'l_ear'     : {
         'label':[7, 1],
-        'dilate':1,
+        'dilate':0,
         },
     'r_ear'     : {
         'label':[8, 1],
-        'dilate':1,
+        'dilate':0,
         },
     'ear_r'     : {
         'label':[9, 0],
-        'dilate':1,
+        'dilate':0,
         },
     'nose'      : {
         'label':[10, 6],
-        'dilate':1,
+        'dilate':0,
         },
     'mouth'     : {
         'label':[11, 7],
-        'dilate':1,
+        'dilate':0,
         },
     'u_lip'     : {
         'label':[12, 7],
-        'dilate':1,
+        'dilate':0,
         },
     'l_lip'     : {
         'label':[13, 7],
-        'dilate':1,
+        'dilate':0,
         },
     'neck'      : {
         'label':[14, 8],
-        'dilate':1,
+        'dilate':0,
         },
     'neck_l'    : {
         'label':[15, 0],
-        'dilate':1,
+        'dilate':0,
         },
     'cloth'     : {
         'label':[16, 0],
-        'dilate':1,
+        'dilate':0,
         },
     'hair'      : {
         'label':[17, 9],
-        'dilate':1,
+        'dilate':0,
         },
     'hat'       : {
         'label':[18, 0],
-        'dilate':1,
+        'dilate':0,
         }, 
 }
 

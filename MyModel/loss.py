@@ -61,46 +61,53 @@ class MyModelLoss(LossInterface):
         # def get_component_loss(self, fake_img, color_img, fake_mask, gray_mask):
         comp_loss_sum = .0
         count = 0
-        crop_size = 128
-        for b_idx in range(2):
-            # for c_idx in [2,3,4,5,6,9]:
-            for component in dict['comp_dict']:
-                comp_dict = dict['comp_dict'][component]
-                comp_index = comp_dict['index']
-                # _gray_mask = gray_mask[b_idx][c_idx]
+        # crop_size = 128
+        # for b_idx in range(dict["batch_size"]):
+        #     # for c_idx in [2,3,4,5,6,9]:
+        #     for component in dict['comp_dict']:
+        #         comp_dict = dict['comp_dict'][component]
+        #         comp_index = comp_dict['index']
+        #         # _gray_mask = gray_mask[b_idx][c_idx]
                     
-                if dict["O_mask"][b_idx, comp_index].sum() and dict["fake_O_mask"][b_idx, comp_index].sum():
-                    try:
-                        count += 1
-                        # print(count, "count")
+        #         if dict["comp_dict"][component]['OP_mask'][b_idx, comp_index].sum() and dict["fake_O_mask"][b_idx, comp_index].sum():
+        #             count += 1
+        #             # print(count, "count")
 
-                        real_comp = dict["C_img"][b_idx] * dict["O_mask"][b_idx, comp_index].unsqueeze(0) # 3 H W
-                        fake_comp = dict["fake_img"][b_idx] * dict["fake_O_mask"][b_idx, comp_index].unsqueeze(0) # 3 H W
+        #             real_comp = dict["comp_dict"][component]["C_img"][b_idx] * dict["comp_dict"][component]['OP_mask'][b_idx, comp_index].unsqueeze(0) # 3 H W
+        #             fake_comp = dict["fake_img"][b_idx] * dict["fake_O_mask"][b_idx, comp_index].unsqueeze(0) # 3 H W
+                    
+                    # center_x, center_y = comp_dict['center'][b_idx]
+                    # center_x, center_y = comp_dict['center'][b_idx]
+                    # scale_x, scale_y = comp_dict['scale'][b_idx]
+                    # shift_x, shift_y = comp_dict['shift'][b_idx]
+                    # center_x, center_y, shift_x, shift_y = int(center_x), int(center_y), int(shift_x), int(shift_y)
+                    # half_x, half_y = int(crop_size//2 // scale_x), int(crop_size//2 // scale_y)
+
+                    # real_comp_crop     = transforms.functional.crop(F.pad(real_comp,(half_x,half_x,half_y,half_y)), top=half_y + (center_y-crop_size//2), left=half_x + (center_x-crop_size//2), height= crop_size, width= crop_size)
+                    # fake_comp_crop     = transforms.functional.crop(F.pad(fake_comp,(half_x,half_x,half_y,half_y)), top=half_y + (center_y+shift_y-half_y), left=half_x + (center_x+shift_x-half_x), height= 2*half_y, width= 2*half_x)
+
+                    # real_comp_crop = real_comp[:, :, 4*(center_y-crop_size//2):4*(center_y+crop_size//2), 4*(center_x-crop_size//2):4*(center_x+crop_size//2)]
+                    # fake_comp_crop = fake_comp[:, :, 4*(center_y+shift_y-half_y):4*(center_y+shift_y+half_y), 4*(center_x+shift_x-half_x):4*(center_x+shift_x+half_x)]
+                    
+                    # real_comp_canvas = F.interpolate(real_comp.unsqueeze(0), (256, 256))
+                    # fake_comp_canvas = F.interpolate(fake_comp_crop.unsqueeze(0), (256, 256))
                         
-                        # real_comp = F.interpolate(real_comp, (128, 128))
-                        # fake_comp = F.interpolate(fake_comp, (128, 128))
+                    # comp_loss_sum += Loss.get_L1_loss(real_comp_crop, fake_comp_crop)
+                    # comp_loss_sum += Loss.get_L1_loss(real_comp, fake_comp)
+                    # except:
+                    #     import pdb;pdb.set_trace()
 
-                        center_x, center_y = comp_dict['center'][b_idx]
-                        # center_x, center_y = comp_dict['center'][b_idx]
-                        scale_x, scale_y = comp_dict['scale'][b_idx]
-                        shift_x, shift_y = comp_dict['shift'][b_idx]
-                        center_x, center_y, shift_x, shift_y = int(center_x), int(center_y), int(shift_x), int(shift_y)
-                        half_x, half_y = int(crop_size//2 // scale_x), int(crop_size//2 // scale_y)
+        for component in dict['comp_dict']:
+            comp_dict = dict['comp_dict'][component]
+            comp_index = comp_dict['index']
+            if dict["comp_dict"][component]['OP_mask'][:, comp_index, :, :].sum() and dict["fake_O_mask"][:, comp_index, :, :].sum():
+                count += 1
+                # print(count, "count")
 
-                        real_comp_crop     = transforms.functional.crop(F.pad(real_comp,(half_x,half_x,half_y,half_y)), top=half_y + (center_y-crop_size//2), left=half_x + (center_x-crop_size//2), height= crop_size, width= crop_size)
-                        fake_comp_crop     = transforms.functional.crop(F.pad(fake_comp,(half_x,half_x,half_y,half_y)), top=half_y + (center_y+shift_y-half_y), left=half_x + (center_x+shift_x-half_x), height= 2*half_y, width= 2*half_x)
+                real_comp = dict["comp_dict"][component]["C_img"] * dict["comp_dict"][component]['OP_mask'][:, comp_index, :, :].unsqueeze(1) # 3 H W
+                fake_comp = dict["fake_img"] * dict["fake_O_mask"][:, comp_index, :, :].unsqueeze(1) # 3 H W
 
-                        # real_comp_crop = real_comp[:, :, 4*(center_y-crop_size//2):4*(center_y+crop_size//2), 4*(center_x-crop_size//2):4*(center_x+crop_size//2)]
-                        # fake_comp_crop = fake_comp[:, :, 4*(center_y+shift_y-half_y):4*(center_y+shift_y+half_y), 4*(center_x+shift_x-half_x):4*(center_x+shift_x+half_x)]
-                        
-                        real_comp_canvas = F.interpolate(real_comp_crop.unsqueeze(0), (256, 256))
-                        fake_comp_canvas = F.interpolate(fake_comp_crop.unsqueeze(0), (256, 256))
-                            
-                        # comp_loss_sum += Loss.get_L1_loss(real_comp_crop, fake_comp_crop)
-                        comp_loss_sum += Loss.get_L1_loss(real_comp_canvas, fake_comp_canvas)
-                    except:
-                        import pdb;pdb.set_trace()
-
+            comp_loss_sum += Loss.get_L1_loss(real_comp, fake_comp)
 
         return comp_loss_sum/count
         

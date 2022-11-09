@@ -17,7 +17,7 @@ class SingleFaceDatasetTrain(Dataset):
         self.face_size = 512
         self.part_size = 128
         self._transforms()
-        
+                     
         self.num_dict = {
             'color':0,
             'head':0,
@@ -29,9 +29,8 @@ class SingleFaceDatasetTrain(Dataset):
             'mouth':0,
         }
         
-        
         self.image_path_list = utils.get_all_images(self.args.train_color_images)[:-40]
-        self.mask_path_list = utils.get_all_images(self.args.train_color_masks)[:-40]
+        self.mask_path_list = utils.get_all_images(self.args.train_color_mask)[:-40]
         self.num_dict['color'] = len(self.image_path_list)
         self.num_dict['head'] = len(self.image_path_list)
         
@@ -60,8 +59,8 @@ class SingleFaceDatasetTrain(Dataset):
         self.mask_mouth_path_list =  utils.get_all_images(self.args.train_mouth_mask)[:-40]
         self.num_dict['mouth'] = len(self.mouth_path_list)
         
-        
-        
+        self.index_candidates = list(range(self.__len__()))
+
         if isMaster:
             print(f"Image Dataset of {self.num_dict['color']} image constructed for the training.")
             print(f"L brow Dataset of {self.num_dict['head']} image constructed for the training.")
@@ -73,16 +72,22 @@ class SingleFaceDatasetTrain(Dataset):
             print(f"Mouth Dataset of {self.num_dict['mouth']} image constructed for the training.")
 
     def __getitem__(self, _):
+        while True:
+            idx_list = random.sample(self.index_candidates, 6)
+            color_img, color_gray, color_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'color', idx_list[0])
+            head_img, head_gray, head_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'head', idx_list[0])
+            l_brow_img, l_brow_gray, l_brow_mask = self.data_pp(self.l_brow_path_list, self.mask_l_brow_path_list, False, 'l_brow', idx_list[0], 64)
+            r_brow_img, r_brow_gray, r_brow_mask = self.data_pp(self.r_brow_path_list, self.mask_r_brow_path_list, False, 'r_brow', idx_list[0], 64)
+            l_eye_img, l_eye_gray, l_eye_mask = self.data_pp(self.l_eye_path_list, self.mask_l_eye_path_list, False, 'l_eye', idx_list[0], 64)
+            r_eye_img, r_eye_gray, r_eye_mask = self.data_pp(self.r_eye_path_list, self.mask_r_eye_path_list, False, 'r_eye', idx_list[0], 64)
+            nose_img, nose_gray, nose_mask = self.data_pp(self.nose_path_list, self.mask_nose_path_list, False, 'nose', idx_list[0], 96)
+            mouth_img, mouth_gray, mouth_mask = self.data_pp(self.mouth_path_list, self.mask_mouth_path_list, False, 'mouth', idx_list[0], 96)
         
-        color_img, color_gray, color_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'color')
-        head_img, head_gray, head_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'head')
-        l_brow_img, l_brow_gray, l_brow_mask = self.data_pp(self.l_brow_path_list, self.mask_l_brow_path_list, False, 'l_brow')
-        r_brow_img, r_brow_gray, r_brow_mask = self.data_pp(self.r_brow_path_list, self.mask_r_brow_path_list, False, 'r_brow')
-        l_eye_img, l_eye_gray, l_eye_mask = self.data_pp(self.l_eye_path_list, self.mask_l_eye_path_list, False, 'l_eye')
-        r_eye_img, r_eye_gray, r_eye_mask = self.data_pp(self.r_eye_path_list, self.mask_r_eye_path_list, False, 'r_eye')
-        nose_img, nose_gray, nose_mask = self.data_pp(self.nose_path_list, self.mask_nose_path_list, False, 'nose')
-        mouth_img, mouth_gray, mouth_mask = self.data_pp(self.mouth_path_list, self.mask_mouth_path_list, False, 'mouth')
-        
+            if head_mask[converter['l_eye']['label'][1]].sum() < 4 or head_mask[converter['r_eye']['label'][1]].sum() < 4 or head_mask[converter['l_brow']['label'][1]].sum() < 4 or head_mask[converter['r_brow']['label'][1]].sum() < 4:
+                continue
+                
+            else:
+                break
 
         return color_img, color_gray, color_mask, head_img, head_gray, head_mask, l_brow_img, l_brow_gray, l_brow_mask, \
                 r_brow_img, r_brow_gray, r_brow_mask, l_eye_img, l_eye_gray, l_eye_mask, r_eye_img, r_eye_gray, r_eye_mask, \
@@ -91,8 +96,7 @@ class SingleFaceDatasetTrain(Dataset):
     def __len__(self):
         return len(self.image_path_list)
     
-    def data_pp(self, image_path_list, mask_path_list, equalizeHist=False, part=None):    
-        idx = random.randint(0, self.num_dict[part]-1)
+    def data_pp(self, image_path_list, mask_path_list, equalizeHist=False, part=None, idx=None, size=None):
         image_path = image_path_list[idx]
         mask_path = mask_path_list[idx]
         
@@ -112,10 +116,12 @@ class SingleFaceDatasetTrain(Dataset):
                 skin_pixels = torch.masked_select(color_tensor, mask_one_hot[1].bool()).reshape(3, -1)
                 self.skin_mean = torch.mean(skin_pixels, dim=1).unsqueeze(1)
             
-        else:     
+        else:
+            
+            color_image, gray_image, mask = color_image.resize((size,size)), gray_image.resize((size,size)), mask.resize((size,size),Image.NEAREST)
+            color_image, gray_image, mask = transforms.CenterCrop(self.part_size)(color_image), transforms.CenterCrop(self.part_size)(gray_image), transforms.CenterCrop(self.part_size)(mask)
             color_tensor = self.part_transforms_color(color_image)
             gray_tensor = self.part_transforms_gray(gray_image)
-            mask = mask.resize((self.part_size,self.part_size),Image.NEAREST)
             mask_one_hot = part_mask2one_hot(mask, part)
             
             color_tensor = self.fill_skin_region(color_tensor, mask_one_hot, part)
@@ -178,7 +184,7 @@ class SingleFaceDatasetValid(Dataset):
         
         
         self.image_path_list = utils.get_all_images(self.args.train_color_images)[-40:]
-        self.mask_path_list = utils.get_all_images(self.args.train_color_masks)[-40:]
+        self.mask_path_list = utils.get_all_images(self.args.train_color_mask)[-40:]
         self.num_dict['color'] = len(self.image_path_list)
         self.num_dict['head'] = len(self.image_path_list)
         
@@ -222,12 +228,12 @@ class SingleFaceDatasetValid(Dataset):
     def __getitem__(self, _):
         color_img, color_gray, color_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'color')
         head_img, head_gray, head_mask = self.data_pp(self.image_path_list, self.mask_path_list, False, 'head')
-        l_brow_img, l_brow_gray, l_brow_mask = self.data_pp(self.l_brow_path_list, self.mask_l_brow_path_list, False, 'l_brow')
-        r_brow_img, r_brow_gray, r_brow_mask = self.data_pp(self.r_brow_path_list, self.mask_r_brow_path_list, False, 'r_brow')
-        l_eye_img, l_eye_gray, l_eye_mask = self.data_pp(self.l_eye_path_list, self.mask_l_eye_path_list, False, 'l_eye')
-        r_eye_img, r_eye_gray, r_eye_mask = self.data_pp(self.r_eye_path_list, self.mask_r_eye_path_list, False, 'r_eye')
-        nose_img, nose_gray, nose_mask = self.data_pp(self.nose_path_list, self.mask_nose_path_list, False, 'nose')
-        mouth_img, mouth_gray, mouth_mask = self.data_pp(self.mouth_path_list, self.mask_mouth_path_list, False, 'mouth')
+        l_brow_img, l_brow_gray, l_brow_mask = self.data_pp(self.l_brow_path_list, self.mask_l_brow_path_list, False, 'l_brow', 64)
+        r_brow_img, r_brow_gray, r_brow_mask = self.data_pp(self.r_brow_path_list, self.mask_r_brow_path_list, False, 'r_brow', 64)
+        l_eye_img, l_eye_gray, l_eye_mask = self.data_pp(self.l_eye_path_list, self.mask_l_eye_path_list, False, 'l_eye', 64)
+        r_eye_img, r_eye_gray, r_eye_mask = self.data_pp(self.r_eye_path_list, self.mask_r_eye_path_list, False, 'r_eye', 64)
+        nose_img, nose_gray, nose_mask = self.data_pp(self.nose_path_list, self.mask_nose_path_list, False, 'nose', 96)
+        mouth_img, mouth_gray, mouth_mask = self.data_pp(self.mouth_path_list, self.mask_mouth_path_list, False, 'mouth', 96)
         
 
         return color_img, color_gray, color_mask, head_img, head_gray, head_mask, l_brow_img, l_brow_gray, l_brow_mask, \
@@ -237,7 +243,7 @@ class SingleFaceDatasetValid(Dataset):
     def __len__(self):
         return len(self.image_path_list)
     
-    def data_pp(self, image_path_list, mask_path_list, equalizeHist=False, part=None):    
+    def data_pp(self, image_path_list, mask_path_list, equalizeHist=False, part=None, size=None):    
         idx = random.randint(0, self.num_dict[part]-1)
         image_path = image_path_list[idx]
         mask_path = mask_path_list[idx]
@@ -245,6 +251,7 @@ class SingleFaceDatasetValid(Dataset):
         color_image = Image.open(image_path)
         gray_image = color_image.convert("L")
         mask = Image.open(mask_path)
+
         if equalizeHist:
             gray_image = cv2.equalizeHist(np.array(gray_image))
             gray_image = Image.fromarray(gray_image)
@@ -258,10 +265,11 @@ class SingleFaceDatasetValid(Dataset):
                 skin_pixels = torch.masked_select(color_tensor, mask_one_hot[1].bool()).reshape(3, -1)
                 self.skin_mean = torch.mean(skin_pixels, dim=1).unsqueeze(1)
             
-        else:     
+        else:
+            color_image, gray_image, mask = color_image.resize((size,size)), gray_image.resize((size,size)), mask.resize((size,size),Image.NEAREST)
+            color_image, gray_image, mask = transforms.CenterCrop(self.part_size)(color_image), transforms.CenterCrop(self.part_size)(gray_image), transforms.CenterCrop(self.part_size)(mask)
             color_tensor = self.part_transforms_color(color_image)
             gray_tensor = self.part_transforms_gray(gray_image)
-            mask = mask.resize((self.part_size,self.part_size),Image.NEAREST)
             mask_one_hot = part_mask2one_hot(mask, part)
             
             color_tensor = self.fill_skin_region(color_tensor, mask_one_hot, part)
@@ -303,70 +311,3 @@ class SingleFaceDatasetValid(Dataset):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
-
-class PairedFaceDatasetTrain(Dataset):
-    def __init__(self, dataset_root_list, isMaster, same_prob=0.2):
-        self.same_prob = same_prob
-        self.image_path_list, self.image_num_list = utils.get_all_images(dataset_root_list)
-        
-        self.transforms = transforms.Compose([
-            transforms.Resize((256,256)),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.ColorJitter(0.2, 0.2, 0.2, 0.01),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
-        if isMaster:
-            print(f"Dataset of {self.__len__()} images constructed for the training.")
-
-    def __getitem__(self, item):
-        idx = 0
-        while item >= self.image_num_list[idx]:
-            item -= self.image_num_list[idx]
-            idx += 1
-        image_path = self.image_path_list[idx][item]
-        
-        Xs = Image.open(image_path).convert("RGB")
-
-        if random.random() > self.same_prob:
-            image_path = random.choice(self.image_path_list[random.randint(0, len(self.image_path_list)-1)])
-            Xt = Image.open(image_path).convert("RGB")
-            same_person = 0
-        else:
-            Xt = Xs.copy()
-            same_person = 1
-        return self.transforms(Xs), self.transforms(Xt), same_person
-
-    def __len__(self):
-        return sum(self.image_num_list)
-
-
-class PairedFaceDatasetValid(Dataset):
-    def __init__(self, valid_data_dir, isMaster):
-        
-        self.source_path_list = sorted(glob.glob(f"{valid_data_dir}/source/*.*g"))
-        self.target_path_list = sorted(glob.glob(f"{valid_data_dir}/target/*.*g"))
-
-        # take the smaller number if two dirs have different numbers of images
-        self.num = min(len(self.source_path_list), len(self.target_path_list))
-        
-        self.transforms = transforms.Compose([
-            transforms.Resize((256,256)),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
-
-        if isMaster:
-            print(f"Dataset of {self.__len__()} images constructed for the validation.")
-
-    def __getitem__(self, idx):
-        
-        Xs = Image.open(self.source_path_list[idx]).convert("RGB")
-        Xt = Image.open(self.target_path_list[idx]).convert("RGB")
-
-        return self.transforms(Xs), self.transforms(Xt)
-
-    def __len__(self):
-        return self.num
-
-

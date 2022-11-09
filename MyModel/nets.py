@@ -22,6 +22,7 @@ class Generator(nn.Module):
     def set_dict(self):
 
         self.base = {
+
             "color_ref": {
                 "C_img": None,
                 "G_img": None,
@@ -192,6 +193,7 @@ class Generator(nn.Module):
         self.batch_size, self.mask_ch_size, _, _ = O_masks[0].size()
         self.set_dict()
         self.set_components(G_imgs, C_imgs, O_masks)
+        self.base["batch_size"] = self.batch_size
         
         with torch.no_grad():
             self.base['skin_ref']['C_feature'], self.base['color_ref']['C_feature'], self.base['skin_ref']['C_ref'] = \
@@ -245,9 +247,12 @@ class Generator(nn.Module):
                 comp['scale'][b_idx][0], comp['scale'][b_idx][1] = scale_x, scale_y
                 half_x, half_y = int(self.crop_size//2 * scale_x), int(self.crop_size//2 * scale_y)
                 try:
-                    CP_img = F.interpolate(F.pad(C_img[b_idx],(half_x,half_x,half_y,half_y)).unsqueeze(0), (self.crop_size * scale_y, self.crop_size * scale_x)).squeeze() # [3, cH cW]
-                    GP_img = F.interpolate(F.pad(G_img[b_idx],(half_x,half_x,half_y,half_y)).unsqueeze(0), (self.crop_size * scale_y, self.crop_size * scale_x)).squeeze() # [1, cH cW]
-                    BP_mask = F.interpolate(F.pad(B_mask[b_idx],(half_x,half_x,half_y,half_y)).unsqueeze(0), (self.crop_size * scale_y, self.crop_size * scale_x)).squeeze() # [cH cW]
+                    # CP_img = F.interpolate(F.pad(C_img[b_idx],(half_x,half_x,half_y,half_y)).unsqueeze(0), (self.crop_size * scale_y, self.crop_size * scale_x)).squeeze() # [3, cH cW]
+                    # GP_img = F.interpolate(F.pad(G_img[b_idx],(half_x,half_x,half_y,half_y)).unsqueeze(0), (self.crop_size * scale_y, self.crop_size * scale_x)).squeeze() # [1, cH cW]
+                    # BP_mask = F.interpolate(F.pad(B_mask[b_idx],(half_x,half_x,half_y,half_y)).unsqueeze(0), (self.crop_size * scale_y, self.crop_size * scale_x)).squeeze() # [cH cW]
+                    CP_img = F.pad(C_img[b_idx],(half_x,half_x,half_y,half_y)) # [3, cH cW]
+                    GP_img = F.pad(G_img[b_idx],(half_x,half_x,half_y,half_y)) # [1, cH cW]
+                    BP_mask = F.pad(B_mask[b_idx],(half_x,half_x,half_y,half_y)) # [cH cW]
                     
                     CP_img = transforms.CenterCrop(self.crop_size)(CP_img)
                     GP_img = transforms.CenterCrop(self.crop_size)(GP_img)
@@ -281,21 +286,21 @@ class Generator(nn.Module):
             BP_mask_rollback = torch.roll(BP_mask_padded[b_idx], shifts=(skin_cy-self.mid_size//2, skin_cx-self.mid_size//2), dims=(-2, -1)) # [1 mH mW]
             CPM_feature_colored_rollback = torch.roll(CPM_feature_colored_padded[b_idx], shifts=(skin_cy-self.mid_size//2, skin_cx-self.mid_size//2), dims=(-2, -1)) # [64 mH mW]
             
-            shift_x, shift_y = 0, 0
+            # shift_x, shift_y = 0, 0
             # shift_x, shift_y = random.randrange(-3,3), random.randrange(-3,3)
-            comp['shift'][b_idx][0], comp['shift'][b_idx][1] = shift_x, shift_y
-            BP_mask_shifted = torch.roll(BP_mask_rollback, shifts=(shift_y, shift_x), dims=(-2, -1)) # [1 mH mW]
-            CPM_feature_colored_shifted = torch.roll(CPM_feature_colored_rollback, shifts=(shift_y, shift_x), dims=(-2, -1)) # [64 mH mW]
+            # comp['shift'][b_idx][0], comp['shift'][b_idx][1] = shift_x, shift_y
+            # BP_mask_shifted = torch.roll(BP_mask_rollback, shifts=(shift_y, shift_x), dims=(-2, -1)) # [1 mH mW]
+            # CPM_feature_colored_shifted = torch.roll(CPM_feature_colored_rollback, shifts=(shift_y, shift_x), dims=(-2, -1)) # [64 mH mW]
             
             tmp = torch.reshape(O_mask_skin[b_idx, index],(1,1,512,512))
             tmp = F.interpolate(tmp, (256,256)).squeeze()
             
-            union_mask = (tmp+BP_mask_shifted[0]).clamp(0,1)  # [mH mW]
-            self.base['fake']['B_mask'][b_idx] = BP_mask_shifted # [1 mH mW]
-            self.base['fake']['O_mask'][b_idx][index] = BP_mask_shifted[0] # [mH mW]
+            union_mask = (tmp+BP_mask_rollback[0]).clamp(0,1)  # [mH mW]
+            self.base['fake']['B_mask'][b_idx] = BP_mask_rollback # [1 mH mW]
+            self.base['fake']['O_mask'][b_idx][index] = BP_mask_rollback[0] # [mH mW]
             self.base['fake']['B_mask_union'][b_idx, 0] += union_mask # [mH mW]
             self.base['fake']['O_mask_union'][b_idx][index] = union_mask # [mH mW]
-            self.base['fake']['C_feature_union'][b_idx] += CPM_feature_colored_shifted * union_mask.unsqueeze(0) # [64 mH mW]
+            self.base['fake']['C_feature_union'][b_idx] += CPM_feature_colored_rollback * union_mask.unsqueeze(0) # [64 mH mW]
 
     # def do_RC(self, color_ref, comp_ref, size):
 

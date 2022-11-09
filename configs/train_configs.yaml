@@ -11,16 +11,24 @@ use_validation: True
 valid_dataset_root: ./assets/k-celeb
 
 # wandb
-use_wandb: False
+use_wandb: True
 wandb_alert_thres: 1000
 
 # train dataset
 train_color_images: ['/home/compu/dataset/facial_parts_dataset/ffhq_img']
-train_color_masks: ['/home/compu/dataset/facial_parts_dataset/ffhq_mask']
+train_color_mask: ['/home/compu/dataset/facial_parts_dataset/ffhq_mask']
+# train_l_brow_images: ['/home/compu/dataset/facial_parts_dataset/Rbrow_img']
+# train_l_brow_mask: ['/home/compu/dataset/facial_parts_dataset/Rbrow_mask']
+# train_r_brow_images: ['/home/compu/dataset/facial_parts_dataset/Lbrow_img']
+# train_r_brow_mask: ['/home/compu/dataset/facial_parts_dataset/Lbrow_mask']
 train_l_brow_images: ['/home/compu/dataset/facial_parts_dataset/Lbrow_img']
 train_l_brow_mask: ['/home/compu/dataset/facial_parts_dataset/Lbrow_mask']
 train_r_brow_images: ['/home/compu/dataset/facial_parts_dataset/Rbrow_img']
 train_r_brow_mask: ['/home/compu/dataset/facial_parts_dataset/Rbrow_mask']
+# train_l_eye_images: ['/home/compu/dataset/facial_parts_dataset/Reye_img']
+# train_l_eye_mask: ['/home/compu/dataset/facial_parts_dataset/Reye_mask']
+# train_r_eye_images: ['/home/compu/dataset/facial_parts_dataset/Leye_img']
+# train_r_eye_mask: ['/home/compu/dataset/facial_parts_dataset/Leye_mask']
 train_l_eye_images: ['/home/compu/dataset/facial_parts_dataset/Leye_img']
 train_l_eye_mask: ['/home/compu/dataset/facial_parts_dataset/Leye_mask']
 train_r_eye_images: ['/home/compu/dataset/facial_parts_dataset/Reye_img']
@@ -41,7 +49,7 @@ lr_D: 0.00001
 
 # optimizer 
 optimizer: Adam # [Ranger, Adam]
-betas: [0.9, 0.999] # default: Adam (0.9, 0.999) / Ranger (0.95, 0.999)
+betas: [0.0, 0.999] # default: Adam (0.9, 0.999) / Ranger (0.95, 0.999)
 
 # weight of loss
 W_adv: 1
@@ -50,7 +58,7 @@ W_feat: 10
 W_lpips: 10
 W_blend: 0
 W_component: 0
-
+# CUDA_VISIBLE_DEVICES=3 python scripts/train.py 1.ver1.7_adv_1_vgg_10_feat_10_lpips_10_G_1e-4_D_1e-5_eye_dilate5
 # hyperparameters
 same_prob: 0.2
 batch_per_gpu: 4
